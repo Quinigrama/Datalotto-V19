@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>🎲 DataLotto49 Mobile</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div id="overlay" class="overlay"></div>
+  
+  <button id="menuBtn" class="menu-btn">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <nav id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <h3>🎲 DataLotto Menu</h3>
+    </div>
+    <ul class="sidebar-links">
+      <li class="active" id="game-lotto649"><a href="#" data-action="switch-game" data-game="lotto649">🏠 DataLotto 6/49</a></li>
+      <li id="game-euromillones"><a href="#" data-action="switch-game" data-game="euromillones">🇪🇺 Euromillones</a></li>
+      <li id="game-eurodreams"><a href="#" data-action="switch-game" data-game="eurodreams">🌙 EuroDreams</a></li>
+      <li id="game-gordo"><a href="#" data-action="switch-game" data-game="gordo">🏆 El Gordo</a></li>
+      <li class="divider"></li>
+      <li><a href="#" id="configUrlsBtn">🔗 Enlaces a Juegos</a></li>
+      <li><a href="#" id="filtersDashboardBtn">📊 Filtros de Juego</a></li>
+      <li><a href="#" id="contactBtn">✉️ Contacto</a></li>
+      <li><a href="#" class="disabled">❓ Tutorial</a></li>
+      <li><a href="#" class="disabled">🌐 Idioma (ES)</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <p>v1.5.0</p>
+    </div>
+  </nav>
+
+  <div class="container" id="mainAppContainer">
+    <header class="header">
+      <h1>🎲 DataLotto49</h1>
+      <p>Generador Inteligente con Arquitectura Matemática Avanzada</p>
+      <div class="header-actions">
+        <button class="header-btn" id="disclaimerBtn" title="Disclaimer Ético">⚠️</button>
+      </div>
+    </header>
+
+    <div class="selected-numbers">
+      <h3>🎯 Números Seleccionados</h3>
+      <div class="selected-display" id="selectedDisplay">
+        <div style="color:#666; font-style: italic;">Selecciona hasta 6 números</div>
+      </div>
+      <!-- Correlation Score -->
+      <div id="correlationScoreContainer" style="margin-top: 15px; display: none; border-top: 1px solid #eee; padding-top: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 5px;">
+              <span style="color: var(--gray); font-weight: 500;">Calidad de la Combinación:</span>
+              <span id="correlationScoreValue" style="font-weight: bold; color: var(--primary);">0%</span>
+          </div>
+          <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+              <div id="correlationScoreBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--danger), var(--warning), var(--success)); transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+          </div>
+          <div id="correlationAdvice" style="font-size: 0.8rem; color: var(--gray); font-style: italic; line-height: 1.4;"></div>
+      </div>
+    </div>
+
+    <div class="number-selection-section">
+      <div class="number-selection-header">
+        <h3 id="selectionTitle">Selección de números</h3>
+        <div class="selection-mode-controls">
+          <button class="selection-mode-btn" data-mode="cold" title="Activar modo para marcar/desmarcar números fríos">
+            <span class="icon">❄️</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="hot" title="Activar modo para marcar/desmarcar números calientes">
+            <span class="icon">🔥</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="absent" title="Activar modo para marcar/desmarcar números ausentes">
+            <span class="icon">👻</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="favorites" title="Activar modo Favoritos (Max 10) ⭐">
+            <span class="icon">⭐</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="excluded" title="Activar modo para marcar/desmarcar números excluidos">
+            <span class="icon">🚫</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="figure" id="figureBtn" title="Activar modo para dibujar una figura">
+            <span class="icon">🗺️</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="data" title="Cargar base de datos" id="dataBtn">
+            <span class="icon">📊</span>
+          </button>
+          <button class="selection-mode-btn" id="urlBtn" title="Seleccionar Base de Datos de Juego" style="border-color: #673ab7; background: #ede7f6; color: #512da8;">
+            <span class="icon">🎮</span>
+          </button>
+          <button class="selection-mode-btn" data-mode="simulate" title="Simular datos" id="simulateBtn">
+            <span class="icon">🎰</span>
+          </button>
+          <button class="selection-mode-btn" id="randomBtn" title="Seleccionar números al azar">
+            <span class="icon">🎲</span>
+          </button>
+          <button class="selection-mode-btn" id="clearBtn" title="Limpiar todas las selecciones">
+            <span class="icon">🗑️</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="numbers-grid" id="numbersGrid"></div>
+
+      <!-- Stars Grid for Euromillones -->
+      <div id="starsGridContainer" style="display: none; margin-top: 25px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+        <h3 style="margin-bottom: 15px; color: #1e293b; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2rem;">⭐</span> Selección de Estrellas
+        </h3>
+        <div id="starsGrid" class="stars-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;"></div>
+      </div>
+    </div>
+
+    <!-- Analizador Estadístico -->
+    <div class="data-analysis-section">
+      <h3>📊 Analizador Estadístico Base</h3>
+      <div class="data-info" id="dataInfo">
+        No hay datos cargados. Carga una base de datos CSV/DB o simula datos históricos.
+      </div>
+      <div class="stats-grid" id="dataStatsGrid" style="display: none;">
+        <div class="stat-item">
+          <div class="stat-label">Total Sorteos</div>
+          <div class="stat-value" id="totalDraws">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Tipo de Datos</div>
+          <div class="stat-value" id="dataType">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Números Más Frecuentes</div>
+          <div class="stat-value" id="mostFrequent">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Números Menos Frecuentes</div>
+          <div class="stat-value" id="leastFrequent">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Chi-cuadrado (Estadístico)</div>
+          <div class="stat-value" id="chiSquare">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Sesgo Detectado</div>
+          <div class="stat-value" id="biasDetected">-</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Data Visualization -->
+    <div class="collapsible-section">
+      <div class="collapsible-header" data-target="viz">
+        <h3>📈 Visualización de Datos</h3>
+        <button class="collapse-btn collapsed" id="vizCollapseBtn">+</button>
+      </div>
+      <div class="collapsible-content" id="vizContent">
+        <div class="collapsible-inner">
+            <p style="font-size: 0.9rem; color: var(--gray); margin-bottom: 15px;">Gráfico de frecuencia de aparición de cada número en los datos cargados.</p>
+            <div id="frequencyChartContainer" class="chart-container">
+                <div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el gráfico.</div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Big Data Intelligence Module -->
+    <div class="collapsible-section">
+        <div class="collapsible-header" data-target="bigdata">
+          <h3>🧠 Big Data Intelligence</h3>
+          <button class="collapse-btn collapsed" id="bigdataCollapseBtn">+</button>
+        </div>
+        <div class="collapsible-content" id="bigdataContent">
+          <div class="collapsible-inner">
+            <div class="bigdata-grid">
+                
+                <!-- Panel 1: Immediate Context -->
+                <div class="bigdata-panel">
+                    <h4>📅 Contexto Inmediato (Últimos 2)</h4>
+                    <div id="lastDrawsDisplay" class="draw-history-mini">
+                        <div style="color: #999; font-style: italic;">Carga datos para ver el análisis.</div>
+                    </div>
+                </div>
+                
+                <!-- Panel 2: Temporal Patterns -->
+                <div class="bigdata-panel">
+                    <h4>⏳ Patrones Temporales</h4>
+                    <select id="nextDrawDay" class="day-selector">
+                        <option value="1">Próximo sorteo: Lunes</option>
+                        <option value="2">Próximo sorteo: Martes</option>
+                        <option value="3">Próximo sorteo: Miércoles</option>
+                        <option value="4">Próximo sorteo: Jueves</option>
+                        <option value="5">Próximo sorteo: Viernes</option>
+                        <option value="6">Próximo sorteo: Sábado</option>
+                        <option value="0">Próximo sorteo: Domingo</option>
+                    </select>
+                    <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Más frecuentes en este día:</div>
+                    <div id="bdDayTopNumbers" class="top-day-numbers">
+                        <span style="font-size: 0.8rem; color: #999;">-</span>
+                    </div>
+                </div>
+
+                <!-- Panel 3: Decision Matrix -->
+                <div class="bigdata-panel bigdata-matrix">
+                    <h4>🧠 Matriz de Decisión (Sugerencias)</h4>
+                    <p style="font-size: 0.8rem; color: #666;">Pulsa para recibir sugerencias visuales en el tablero (borde azul):</p>
+                    <div class="strategy-matrix-buttons">
+                        <div class="bd-strat-btn" data-type="conservative">
+                            <strong>Conservadora</strong>
+                            <small>0 Repeticiones</small>
+                            <small>Prob: 39.7%</small>
+                        </div>
+                        <div class="bd-strat-btn" data-type="balanced">
+                            <strong>Balanceada</strong>
+                            <small>1 Repetición</small>
+                            <small>Prob: 42.0%</small>
+                        </div>
+                        <div class="bd-strat-btn" data-type="risk">
+                            <strong>Riesgo</strong>
+                            <small>2 Repeticiones</small>
+                            <small>Prob: 14.8%</small>
+                        </div>
+                        <div class="bd-strat-btn ai-predict-btn" id="aiPredictBtn" style="border-color: #6366f1; background: #eef2ff; color: #4f46e5;">
+                            <strong>🤖 Predicción IA</strong>
+                            <small>Análisis Gemini</small>
+                            <small>Patrones 2026</small>
+                        </div>
+                    </div>
+
+                    <!-- Nuevo Panel: Perfil de Referencia y Tendencia -->
+                    <div id="drawTrendPanel" class="draw-trend-panel" style="margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; display: none;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 1.2rem;">📊</span>
+                            <h5 style="margin: 0; font-size: 0.9rem; color: #1e293b; font-weight: 600;">Estado del Ciclo (Último Sorteo)</h5>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="trend-stat">
+                                <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Tendencia Actual</small>
+                                <span id="currentTrendLabel" style="font-weight: 600; color: #334155; font-size: 0.85rem;">-</span>
+                            </div>
+                            <div class="trend-stat">
+                                <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Recomendación</small>
+                                <span id="trendRecommendation" style="font-weight: 600; color: #4f46e5; font-size: 0.85rem;">-</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                            <small style="display: block; color: #64748b; font-size: 0.7rem; margin-bottom: 4px;">Perfil de Referencia Sugerido:</small>
+                            <div id="suggestedProfile" style="font-size: 0.8rem; color: #334155; font-weight: 500;">
+                                <span class="profile-tag" style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Calientes</span>
+                                <span class="profile-tag" style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Neutros</span>
+                                <span class="profile-tag" style="background: #e0f2fe; color: #075985; padding: 2px 6px; border-radius: 4px;">0 Fríos</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="bdAlerts" class="bigdata-alerts">
+                        <!-- Alerts injected here -->
+                    </div>
+                </div>
+
+            </div>
+          </div>
+        </div>
+    </div>
+
+    <!-- Estrategias -->
+    <div class="strategy-section">
+      <h3>♟ Estrategia de Juego</h3>
+      <div class="strategy-buttons">
+        <div class="strategy-btn active" data-strategy="simple">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎲</div>
+          <div>Simple</div>
+        </div>
+        <div class="strategy-btn" data-strategy="winning">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🏆</div>
+          <div>Estrategia Ganadora</div>
+        </div>
+        <div class="strategy-btn" data-strategy="multiple">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎰</div>
+          <div>Múltiple</div>
+        </div>
+      </div>
+
+      <div class="multiple-options" id="winningOptions" style="display: none;">
+        <div class="input-row">
+          <label>Generar:</label>
+          <input type="number" id="generateCount" value="100" min="10" max="1000">
+          <span>combinaciones</span>
+        </div>
+        <div class="input-row">
+          <label>Jugar:</label>
+          <input type="number" id="playCount" value="10" min="1" max="100">
+          <span>mejores</span>
+        </div>
+      </div>
+      
+      <div class="multiple-numbers-options" id="multipleNumbersOptions" style="display: none;">
+        <div class="numbers-select">
+            <label>¿Cuántos números quieres seleccionar?</label>
+            <div class="number-option active" data-numbers="7">7 números</div>
+            <div class="number-option" data-numbers="8">8 números</div>
+            <div class="number-option" data-numbers="9">9 números</div>
+            <div class="number-option" data-numbers="10">10 números</div>
+            <div class="number-option" data-numbers="11">11 números</div>
+        </div>
+      </div>
+
+      <button class="generate-btn" id="generateBtn">
+        <span>🤞 Generar Combinación</span>
+      </button>
+    </div>
+    
+    <!-- Filtros Avanzados -->
+    <div class="collapsible-section">
+        <div class="collapsible-header" data-target="filters">
+            <h3>⚙️ Panel de Control de Filtros Avanzados</h3>
+            <button class="collapse-btn collapsed" id="filtersCollapseBtn">+</button>
+        </div>
+        <div class="collapsible-content" id="filtersContent">
+            <div class="filter-spinner-overlay" id="filterSpinnerOverlay">
+                <div class="loading-spinner"></div>
+            </div>
+            <div class="collapsible-inner">
+                <div class="filters-panel">
+                    
+                    <!-- GRUPO: Excluir Terminaciones -->
+                    <div class="filter-group" title="Excluye cualquier combinación que contenga un número terminado en los dígitos seleccionados.">
+                        <div class="filter-title">🚫 Excluir Terminaciones</div>
+                        <div class="filter-options" id="terminacionesOptions">
+                            <div class="filter-chip" data-value="0">0</div>
+                            <div class="filter-chip" data-value="1">1</div>
+                            <div class="filter-chip" data-value="2">2</div>
+                            <div class="filter-chip" data-value="3">3</div>
+                            <div class="filter-chip" data-value="4">4</div>
+                            <div class="filter-chip" data-value="5">5</div>
+                            <div class="filter-chip" data-value="6">6</div>
+                            <div class="filter-chip" data-value="7">7</div>
+                            <div class="filter-chip" data-value="8">8</div>
+                            <div class="filter-chip" data-value="9">9</div>
+                        </div>
+                    </div>
+
+                    <!-- GRUPO: Variedad de Terminaciones -->
+                    <div class="filter-group" title="Filtra por el número de terminaciones distintas.">
+                        <div class="filter-title">#️⃣ Variedad de Terminaciones</div>
+                        <div class="filter-options" id="terminacionesDistintasOptions">
+                             <div class="filter-chip" data-value="2">2</div>
+                             <div class="filter-chip" data-value="3">3</div>
+                             <div class="filter-chip active" data-value="4">4</div>
+                             <div class="filter-chip active" data-value="5">5</div>
+                             <div class="filter-chip active" data-value="6">6</div>
+                        </div>
+                    </div>
+
+                    <!-- GRUPO: Filtros de Balance -->
+                    <div class="filter-group" title="La suma de los números principales.">
+                        <div class="filter-title">🎯 Suma Total (Números)</div>
+                        <div class="range-control">
+                            <input type="number" id="sumMin" value="121" min="21" max="279">
+                            <span>a</span>
+                            <input type="number" id="sumMax" value="190" min="21" max="279">
+                        </div>
+                        <div class="validation-error" id="sumError">El valor mínimo no puede ser mayor que el máximo</div>
+                    </div>
+
+                    <div class="filter-group" title="Proporción de números pares e impares.">
+                        <div class="filter-title">⚖️ Par/Impar (Números)</div>
+                        <div class="filter-options" id="parImparOptions">
+                            <div class="filter-chip" data-value="6/0">6P/0I</div>
+                            <div class="filter-chip" data-value="5/1">5P/1I</div>
+                            <div class="filter-chip active" data-value="4/2">4P/2I</div>
+                            <div class="filter-chip active" data-value="3/3">3P/3I</div>
+                            <div class="filter-chip active" data-value="2/4">2P/4I</div>
+                            <div class="filter-chip" data-value="1/5">1P/5I</div>
+                            <div class="filter-chip" data-value="0/6">0P/6I</div>
+                        </div>
+                    </div>
+
+                    <div class="filter-group" title="Proporción de números bajos y altos.">
+                        <div class="filter-title">📊 Bajos/Altos (Números)</div>
+                        <div class="filter-options" id="bajosAltosOptions">
+                             <div class="filter-chip" data-value="6/0">6B/0A</div>
+                             <div class="filter-chip" data-value="5/1">5B/1A</div>
+                             <div class="filter-chip active" data-value="4/2">4B/2A</div>
+                             <div class="filter-chip active" data-value="3/3">3B/3A</div>
+                             <div class="filter-chip active" data-value="2/4">2B/4A</div>
+                             <div class="filter-chip" data-value="1/5">1B/5A</div>
+                             <div class="filter-chip" data-value="0/6">0B/6A</div>
+                        </div>
+                    </div>
+
+                    <!-- GRUPO: Filtros Estructurales -->
+                    <div class="filter-group" title="Cantidad de números primos.">
+                        <div class="filter-title">🔢 Números Primos</div>
+                        <div class="range-control">
+                             <span>Entre</span>
+                             <input type="number" id="primosMin" value="1" min="0" max="6">
+                             <span>y</span>
+                             <input type="number" id="primosMax" value="3" min="0" max="6">
+                             <span>primos</span>
+                        </div>
+                        <div class="validation-error" id="primosError">Error en rango</div>
+                    </div>
+
+                    <div class="filter-group" title="Agrupación de números consecutivos.">
+                        <div class="filter-title">🔗 Números Consecutivos</div>
+                        <div class="filter-options" id="consecutivosOptions">
+                            <div class="filter-chip" data-value="6">6</div>
+                            <div class="filter-chip" data-value="5/1">5/1</div>
+                            <div class="filter-chip" data-value="4/2">4/2</div>
+                            <div class="filter-chip" data-value="4/1/1">4/1/1</div>
+                            <div class="filter-chip" data-value="3/3">3/3</div>
+                            <div class="filter-chip" data-value="3/2/1">3/2/1</div>
+                            <div class="filter-chip" data-value="3/1/1/1">3/1/1/1</div>
+                            <div class="filter-chip" data-value="2/2/2">2/2/2</div>
+                            <div class="filter-chip" data-value="2/2/1/1">2/2/1/1</div>
+                            <div class="filter-chip active" data-value="2/1/1/1/1">2/1/1/1/1</div>
+                            <div class="filter-chip active" data-value="1/1/1/1/1/1">1/1/1/1/1/1</div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group" title="Distancia mínima y máxima entre números adyacentes.">
+                        <div class="filter-title">↔️ Distancia entre Números</div>
+                        <div class="range-control">
+                            <input type="number" id="distanciaMin" value="1" min="1" max="44">
+                            <span>a</span>
+                            <input type="number" id="distanciaMax" value="25" min="1" max="44">
+                        </div>
+                        <div class="validation-error" id="distanciaError">Error en rango</div>
+                    </div>
+                    
+                    <div class="filter-group" title="Distribución de los números en las decenas.">
+                        <div class="filter-title">📦 Agrupación por Decenas</div>
+                         <div class="filter-options" id="agrupDecenasOptions">
+                            <div class="filter-chip active" data-value="6">6</div>
+                            <div class="filter-chip active" data-value="5/1">5/1</div>
+                            <div class="filter-chip active" data-value="4/2">4/2</div>
+                            <div class="filter-chip active" data-value="4/1/1">4/1/1</div>
+                            <div class="filter-chip active" data-value="3/3">3/3</div>
+                            <div class="filter-chip active" data-value="3/2/1">3/2/1</div>
+                            <div class="filter-chip active" data-value="3/1/1/1">3/1/1/1</div>
+                            <div class="filter-chip active" data-value="2/2/2">2/2/2</div>
+                            <div class="filter-chip active" data-value="2/2/1/1">2/2/1/1</div>
+                            <div class="filter-chip active" data-value="2/1/1/1/1">2/1/1/1/1</div>
+                        </div>
+                    </div>
+
+                    <div class="filter-group" title="La suma de todos los dígitos individuales.">
+                        <div class="filter-title">∑ Suma de Dígitos</div>
+                        <div class="range-control">
+                            <input type="number" id="sumaDigitosMin" value="28" min="21" max="63">
+                            <span>a</span>
+                            <input type="number" id="sumaDigitosMax" value="45" min="21" max="63">
+                        </div>
+                        <div class="validation-error" id="sumaDigitosError">Error en rango</div>
+                    </div>
+
+                    <!-- GRUPO: Filtros Estadísticos Avanzados -->
+                    <div class="filter-group" title="Mide la dispersión de los números.">
+                        <div class="filter-title">📈 Desviación Estándar</div>
+                        <div class="range-control">
+                            <input type="number" id="desviacionMin" value="12.0" min="1" max="24" step="0.1">
+                            <span>a</span>
+                            <input type="number" id="desviacionMax" value="18.0" min="1" max="24" step="0.1">
+                        </div>
+                        <div class="validation-error" id="desviacionError">Error en rango</div>
+                    </div>
+                    
+                    <div class="filter-group" title="Entropía de Shannon.">
+                        <div class="filter-title">🌀 Entropía (Shannon)</div>
+                        <div class="range-control">
+                            <input type="number" id="entropyMin" value="2.3" min="1.0" max="2.6" step="0.05">
+                            <span>a</span>
+                            <input type="number" id="entropyMax" value="2.6" min="1.0" max="2.6" step="0.05">
+                        </div>
+                        <div class="validation-error" id="entropyError">Error en rango</div>
+                    </div>
+
+                    <!-- GRUPO: Filtros Geométricos -->
+                    <div class="filter-group" title="Evita o favorece combinaciones que formen visuales.">
+                        <div class="filter-title">🗺️ Filtros Geométricos y Figuras</div>
+                        <div class="filter-options" id="geometricOptions">
+                            <div class="filter-chip" data-value="lineas">🚫 Líneas</div>
+                            <div class="filter-chip" data-value="diagonales">🚫 Diagonales</div>
+                            <div class="filter-chip" data-value="triangulos">🚫 Triángulos</div>
+                            <div class="filter-chip" data-value="circulos">🚫 Círculos</div>
+                            <div class="filter-chip" data-value="cruces">🚫 Cruces</div>
+                            <div class="filter-chip" data-value="espaciados">👍 Espaciados</div>
+                        </div>
+                        <div class="filter-info-text">
+                            <b>Usa el Modo Figura 🗺️</b> en la selección de números para generar combinaciones dentro de un patrón específico.
+                        </div>
+                    </div>
+
+                    <!-- GRUPO: Filtros de Estrellas (Solo Euromillones) -->
+                    <div id="starFiltersSection" style="display: none; border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 10px; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">
+                        <div style="font-weight: bold; color: #fbbf24; margin-bottom: 15px; display: flex; align-items: center; gap: 5px; justify-content: center; font-size: 1.1rem;">
+                            <span>⭐ Filtros de Estrellas (2/12) ⭐</span>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <div class="filter-title">🎯 Suma Estrellas</div>
+                            <div class="range-control">
+                                <input type="number" id="starSumMin" value="3" min="3" max="23">
+                                <span>a</span>
+                                <input type="number" id="starSumMax" value="18" min="3" max="23">
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">⚖️ Par/Impar Estrellas</div>
+                            <div class="filter-options" id="starParImparOptions">
+                                <!-- Dinámico -->
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">📊 Bajos/Altos Estrellas</div>
+                            <div class="filter-options" id="starBajosAltosOptions">
+                                <!-- Dinámico -->
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">∑ Suma Dígitos Estrellas</div>
+                            <div class="range-control">
+                                <input type="number" id="starSumaDigitosMin" value="2" min="2" max="23">
+                                <span>a</span>
+                                <input type="number" id="starSumaDigitosMax" value="18" min="2" max="23">
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">🔢 Primos Estrellas</div>
+                            <div class="range-control">
+                                <input type="number" id="starPrimosMin" value="0" min="0" max="2">
+                                <span>a</span>
+                                <input type="number" id="starPrimosMax" value="2" min="0" max="2">
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">🔗 Consecutivos Estrellas</div>
+                            <div class="filter-options" id="starConsecutivosOptions">
+                                <!-- Dinámico -->
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="filter-title">📏 Distancia Estrellas</div>
+                            <div class="range-control">
+                                <input type="number" id="starDistanciaMin" value="1" min="1" max="11">
+                                <span>a</span>
+                                <input type="number" id="starDistanciaMax" value="11" min="1" max="11">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GRUPO: Filtros Predictivos (IA) -->
+                    <div class="filter-group" title="Modelos matemáticos avanzados.">
+                        <div class="filter-title">🤖 Filtros Predictivos (IA)</div>
+                        <div class="switch-control" style="margin-top: 0;">
+                            <label class="switch">
+                                <input type="checkbox" id="useMarkovSwitch">
+                                <span class="slider"></span>
+                            </label>
+                            <span>Cadenas de Markov</span>
+                        </div>
+                        <div class="ai-config-row">
+                            <label for="markovDepth">Sorteos a considerar: <span id="markovDepthValue">5</span></label>
+                            <input type="range" id="markovDepth" min="1" max="20" value="5">
+                        </div>
+
+                        <div class="switch-control">
+                            <label class="switch">
+                                <input type="checkbox" id="useNashSwitch">
+                                <span class="slider"></span>
+                            </label>
+                            <span>Optimización Nash (Anti-Popular)</span>
+                        </div>
+                        <div class="ai-config-row">
+                            <label for="nashWeight">Factor Anti-Popularidad: <span id="nashWeightValue">1</span></label>
+                            <input type="range" id="nashWeight" min="0" max="10" value="1">
+                        </div>
+
+                        <div class="switch-control">
+                            <label class="switch">
+                                <input type="checkbox" id="useRegressionSwitch">
+                                <span class="slider"></span>
+                            </label>
+                            <span>Regresión a la Media (Pro-Fríos)</span>
+                        </div>
+                        <div class="ai-config-row">
+                            <label for="regressionBonus">Bonus por nº Frío: <span id="regressionBonusValue">3</span></label>
+                            <input type="range" id="regressionBonus" min="0" max="10" value="3">
+                        </div>
+                        
+                        <div class="filter-info-text">
+                            <b>Markov:</b> Analiza secuencias. <b>Nash:</b> Favorece números menos populares. <b>Regresión:</b> Apuesta por números 'atrasados'.
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions" style="margin-top: 15px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button id="saveFiltersBtn" class="strategy-btn" style="display: inline-block; width: auto; padding: 10px 20px; background: #f3f4f6; border-color: var(--primary);">
+                            💾 Guardar Filtros
+                        </button>
+                        <button id="loadFiltersBtn" class="strategy-btn" style="display: inline-block; width: auto; padding: 10px 20px; background: #f3f4f6; border-color: var(--secondary);">
+                            📂 Cargar Filtros
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas en Tiempo Real (COLLAPSIBLE) -->
+    <div class="collapsible-section">
+      <div class="collapsible-header" data-target="realTimeStats">
+          <h3>📊 Estadísticas en Tiempo Real</h3>
+          <button class="collapse-btn collapsed" id="realTimeStatsCollapseBtn">+</button>
+      </div>
+      <div class="collapsible-content" id="realTimeStatsContent">
+          <div class="collapsible-inner">
+              <div class="stats-grid" id="statsContent">
+                <div class="stat-item">
+                    <div class="stat-label">Suma Total</div>
+                    <div class="stat-value" id="statSuma">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Par/Impar</div>
+                    <div class="stat-value" id="statParImpar">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Bajos/Altos</div>
+                    <div class="stat-value" id="statBajosAltos">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Decenas</div>
+                    <div class="stat-value" id="statDecenas">-</div>
+                </div>
+                <div class="stat-item">
+                     <div class="stat-label">Agrup. Decenas</div>
+                     <div class="stat-value" id="statAgrupDecenas">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Consecutivos</div>
+                    <div class="stat-value" id="statConsecutivos">-</div>
+                </div>
+                 <div class="stat-item">
+                     <div class="stat-label">Suma Dígitos</div>
+                     <div class="stat-value" id="statSumaDigitos">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Números Primos</div>
+                    <div class="stat-value" id="statPrimos">-</div>
+                </div>
+                 <div class="stat-item">
+                     <div class="stat-label">Desviación</div>
+                     <div class="stat-value" id="statDesviacion">-</div>
+                </div>
+                 <div class="stat-item">
+                     <div class="stat-label">Entropía</div>
+                     <div class="stat-value" id="statEntropia">-</div>
+                </div>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <div id="ticket" class="ticket">
+      <div class="ticket-header">
+        <h4>🎫 Tu Boleto Ganador</h4>
+        <p id="ticketDate"></p>
+      </div>
+      <div class="ticket-draw-date-selector">
+          <label>Fecha del Sorteo (Opcional):</label>
+          <input type="date" id="ticketDrawDate">
+      </div>
+      <div id="ticketCombinations"></div>
+      <div class="ticket-actions">
+        <button class="ticket-btn save-btn" id="saveBtn">
+          💾 Guardar Boleto
+        </button>
+        <button class="ticket-btn share-btn" id="shareBtn">
+          📤 Compartir
+        </button>
+      </div>
+    </div>
+
+    <!-- Estadísticas de Boletos Guardados (COLLAPSIBLE) -->
+    <div class="collapsible-section" id="savedTicketsStatsSection">
+        <div class="collapsible-header" data-target="savedStats">
+            <h3>📈 Estadísticas de Boletos Guardados</h3>
+            <button class="collapse-btn collapsed" id="savedStatsCollapseBtn">+</button>
+        </div>
+        <div class="collapsible-content" id="savedStatsContent">
+            <div class="collapsible-inner" id="savedTicketsStats">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Combinaciones Generadas</div>
+                        <div class="stat-value" id="totalTicketsSaved">-</div>
+                    </div>
+                     <div class="stat-item">
+                        <div class="stat-label">Estrategia Más Usada</div>
+                        <div class="stat-value" id="mostUsedStrategy">-</div>
+                    </div>
+                     <div class="stat-item">
+                        <div class="stat-label">Aciertos de 3</div>
+                        <div class="stat-value" id="hits3">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Aciertos de 4</div>
+                        <div class="stat-value" id="hits4">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Aciertos de 5</div>
+                        <div class="stat-value" id="hits5">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Aciertos de 6</div>
+                        <div class="stat-value" id="hits6">-</div>
+                    </div>
+                    <div class="stat-item" style="grid-column: 1 / -1;">
+                        <div class="stat-label">Distribución de Estrategias</div>
+                        <div class="stat-value" id="strategyDistribution">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Módulo de Backtesting Avanzado (COLLAPSIBLE) -->
+    <div class="collapsible-section" id="backtestingSection">
+        <div class="collapsible-header" data-target="backtesting">
+            <h3>🔬 Módulo de Backtesting Avanzado</h3>
+            <button class="collapse-btn collapsed" id="backtestingCollapseBtn">+</button>
+        </div>
+        <div class="collapsible-content" id="backtestingContent">
+            <div class="collapsible-inner">
+                <div class="backtesting-controls" style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div class="filter-group">
+                        <div class="filter-title">📅 Periodo de Sorteos Históricos</div>
+                        <select id="backtestPeriod" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                            <option value="10">Últimos 10 sorteos</option>
+                            <option value="50">Últimos 50 sorteos</option>
+                            <option value="100" selected>Últimos 100 sorteos</option>
+                            <option value="200">Últimos 200 sorteos</option>
+                            <option value="all">Todos los sorteos cargados</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-title">🧭 Modalidad del Test</div>
+                        <select id="backtestMode" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                            <option value="current">Probar combinaciones/selección actual</option>
+                            <option value="generative">Probar algoritmos activos (Generativo paso a paso)</option>
+                            <option value="filters">Filtros Activos (Eficacia del filtrado histórico)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="backtesting-actions" style="text-align: center; margin-bottom: 25px;">
+                    <button class="generate-btn" id="runBacktestBtn" style="background: linear-gradient(135deg, var(--secondary) 0%, #7c3aed 100%); width: auto; padding: 12px 30px; display: inline-flex; align-items: center; gap: 8px;">
+                        <span>🚀 Iniciar Backtesting</span>
+                    </button>
+                    <!-- Progress Bar -->
+                    <div id="backtestProgressContainer" style="display: none; margin-top: 15px; width: 100%; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--gray); margin-bottom: 4px;">
+                            <span>Procesando combinaciones...</span>
+                            <span id="backtestProgressText">0%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                            <div id="backtestProgressBar" style="width: 0%; height: 100%; background: var(--secondary); transition: width 0.1s linear;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backtesting Results Module (initially hidden or template) -->
+                <div id="backtestResults" style="display: none;">
+                    <div class="stats-grid" style="margin-bottom: 20px;">
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblTotalDraws">Sorteos Simulados</div>
+                            <div class="stat-value" id="btTotalDraws">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblTicketPrice">Precio por Apuesta</div>
+                            <div class="stat-value" id="btTicketPrice">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblTotalSpent">Presupuesto Invertido</div>
+                            <div class="stat-value" style="color: var(--dark);" id="btTotalSpent">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblTotalWon">Premios Recuperados</div>
+                            <div class="stat-value" style="color: var(--success);" id="btTotalWon">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblBalance">Balance Neto</div>
+                            <div class="stat-value" style="font-weight: bold;" id="btBalance">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label" id="lblROI">Retorno de Inversión (ROI)</div>
+                            <div class="stat-value" style="font-weight: bold;" id="btROI">-</div>
+                        </div>
+                        <div class="stat-item" style="grid-column: 1 / -1; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                            <div class="stat-label" style="font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 4px;">
+                                💡 Esperanza Matemática Empírica: <span id="btExpectedValue" style="font-weight: 800;">-</span>
+                            </div>
+                            <div class="stat-info" style="font-size: 0.8rem; color: var(--gray); font-style: italic; line-height: 1.4;" id="btExpectedValueAdvice">
+                                Carga y corre un análisis para ver detalles del valor esperado por sorteo.
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 id="btBreakdownTitle" style="color: var(--primary); margin-bottom: 15px; font-size: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">🏆 Desglose Detallado de Aciertos</h4>
+                    <div id="btHitsBreakdownContainer">
+                        <!-- To be dynamically filled -->
+                    </div>
+                </div>
+                
+                <div id="backtestNoDataAlert" style="color: var(--gray); font-style: italic; text-align: center; padding: 15px;">
+                     Carga una base de datos o simula sorteos históricos antes de poder realizar pruebas de backtesting.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Dashboard de Filtros 6/49 -->
+    <div class="container" id="filtersDashboardContainer" style="display: none;">
+      <header class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1>📊 Filtros 6/49</h1>
+            <p>Dashboard de Análisis y Filtrado de Combinaciones</p>
+        </div>
+        <button class="btn primary" id="dbBackToMainBtn" style="padding: 8px 16px; font-size: 0.9rem;">↩️ Volver</button>
+      </header>
+
+      <div class="total-combinations-box">
+          Total de Combinaciones Posibles: 13,983,816
+      </div>
+
+      <div class="filters-dashboard-grid">
+          <!-- Panel de Filtros Interactivos -->
+          <div class="dashboard-panel filters-panel-dashboard">
+              <h3 class="panel-title">🎯 Filtros Interactivos</h3>
+              
+              <!-- Suma Total -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">🎯</span>
+                      <span class="filter-title">Suma Total</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbSumaOptions">
+                      <div class="db-filter-option" data-filter="suma" data-value="21-80">21-80<br><small>(0.6%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="81-120">81-120<br><small>(13%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="121-140">121-140<br><small>(20%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="141-169">141-169<br><small>(32%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="170-190">170-190<br><small>(20%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="191-230">191-230<br><small>(13%)</small></div>
+                      <div class="db-filter-option" data-filter="suma" data-value="231-279">231-279<br><small>(1.4%)</small></div>
+                  </div>
+              </div>
+
+              <!-- Par/Impar -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">⚖️</span>
+                      <span class="filter-title">Par/Impar</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbParImparOptions">
+                      <div class="db-filter-option" data-filter="parImpar" data-value="6/0">6/0<br><small>(0.96%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="5/1">5/1<br><small>(24.07%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="4/2">4/2<br><small>(43.49%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="3/3">3/3<br><small>(28.98%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="2/4">2/4<br><small>(2.17%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="1/5">1/5<br><small>(0.35%)</small></div>
+                      <div class="db-filter-option" data-filter="parImpar" data-value="0/6">0/6<br><small>(1.27%)</small></div>
+                  </div>
+              </div>
+
+              <!-- Bajos/Altos -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">📊</span>
+                      <span class="filter-title">Bajos/Altos (1-25/26-49)</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbBajosAltosOptions">
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="6/0">6/0<br><small>(1.27%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="5/1">5/1<br><small>(7.60%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="4/2">4/2<br><small>(23.04%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="3/3">3/3<br><small>(33.02%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="2/4">2/4<br><small>(23.04%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="1/5">1/5<br><small>(7.60%)</small></div>
+                      <div class="db-filter-option" data-filter="bajosAltos" data-value="0/6">0/6<br><small>(0.96%)</small></div>
+                  </div>
+              </div>
+
+              <!-- Números Primos -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">🔢</span>
+                      <span class="filter-title">Números Primos</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbPrimosOptions">
+                      <div class="db-filter-option" data-filter="primos" data-value="0">0 primos<br><small>(19.75%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="1">1 primo<br><small>(39.50%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="2">2 primos<br><small>(29.63%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="3">3 primos<br><small>(9.87%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="4">4 primos<br><small>(1.18%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="5">5 primos<br><small>(0.06%)</small></div>
+                      <div class="db-filter-option" data-filter="primos" data-value="6">6 primos<br><small>(0.04%)</small></div>
+                  </div>
+              </div>
+
+              <!-- Números Consecutivos -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">🔗</span>
+                      <span class="filter-title">Números Consecutivos</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbConsecutivosOptions">
+                      <div class="db-filter-option" data-filter="consecutivos" data-value="sin-consecutivos">Sin consecutivos<br><small>(43.62%)</small></div>
+                      <div class="db-filter-option" data-filter="consecutivos" data-value="1-par">1 par consecutivo<br><small>(41.10%)</small></div>
+                      <div class="db-filter-option" data-filter="consecutivos" data-value="2-pares">2 pares consecutivos<br><small>(13.13%)</small></div>
+                      <div class="db-filter-option" data-filter="consecutivos" data-value="3-seguidos">3 seguidos<br><small>(1.85%)</small></div>
+                      <div class="db-filter-option" data-filter="consecutivos" data-value="4-seguidos">4+ seguidos<br><small>(0.30%)</small></div>
+                  </div>
+              </div>
+
+              <!-- Agrupación por Decenas -->
+              <div class="dashboard-filter-group">
+                  <div class="dashboard-filter-header">
+                      <span class="filter-icon">📈</span>
+                      <span class="filter-title">Agrupación por Decenas</span>
+                  </div>
+                  <div class="dashboard-filter-options" id="dbDecenasOptions">
+                      <div class="db-filter-option" data-filter="decenas" data-value="2/2/1/1">2/2/1/1<br><small>(38.66%)</small></div>
+                      <div class="db-filter-option" data-filter="decenas" data-value="2/1/1/1/1">2/1/1/1/1<br><small>(30.93%)</small></div>
+                      <div class="db-filter-option" data-filter="decenas" data-value="3/2/1">3/2/1<br><small>(15.47%)</small></div>
+                      <div class="db-filter-option" data-filter="decenas" data-value="2/2/2">2/2/2<br><small>(7.73%)</small></div>
+                      <div class="db-filter-option" data-filter="decenas" data-value="otros">Otros<br><small>(7.21%)</small></div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Panel de Resultados Dashboard -->
+          <div class="dashboard-panel results-panel-dashboard">
+              <div class="db-results-header">
+                  <h3>🎯 Porcentaje de Éxito</h3>
+                  <div class="db-success-rate" id="dbSuccessRate">100.00%</div>
+                  <div class="db-combinations-count" id="dbCombinationsCount">13,983,816 combinaciones</div>
+              </div>
+
+              <div class="db-progress-container">
+                  <div class="db-progress-bar" id="dbProgressBar" style="width: 100%">100%</div>
+              </div>
+
+              <div class="db-active-filters">
+                  <h4>🏷️ Filtros Activos</h4>
+                  <div id="dbActiveFiltersContainer" class="db-active-filters-list">
+                      <span style="color: #666; font-style: italic;">Ningún filtro seleccionado</span>
+                  </div>
+              </div>
+
+              <button class="db-clear-filters-btn" id="dbClearFiltersBtn">🗑️ Limpiar Filtros</button>
+
+              <div class="db-stats-details">
+                  <h4 style="margin-bottom: 10px; color: var(--dark);">📊 Detalles Estadísticos</h4>
+                  <div class="db-detail-item">
+                      <span class="db-detail-label">Probabilidad de acierto:</span>
+                      <span class="db-detail-value" id="dbProbValue">1 en 1</span>
+                  </div>
+                  <div class="db-detail-item">
+                      <span class="db-detail-label">Filtros aplicados:</span>
+                      <span class="db-detail-value" id="dbFilterCount">0</span>
+                  </div>
+                  <div class="db-detail-item">
+                      <span class="db-detail-label">Reducción de espacio:</span>
+                      <span class="db-detail-value" id="dbReductionValue">0%</span>
+                  </div>
+              </div>
+
+              <div class="db-warning-box" id="dbWarningBox" style="display: none;">
+                  <div class="db-warning-title">⚠️ Advertencia</div>
+                  <div id="dbWarningText"></div>
+              </div>
+
+              <div class="db-insight-box">
+                  <div class="db-insight-title">💡 Consejo Estratégico</div>
+                  <div id="dbStrategicAdvice">Selecciona filtros para ver recomendaciones personalizadas sobre tu estrategia de juego.</div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Análisis Estadístico Completo Dashboard -->
+      <div class="db-tabs">
+          <button class="db-tab active" data-tab="db-basic-analysis">Análisis Básico</button>
+          <button class="db-tab" data-tab="db-advanced-analysis">Análisis Avanzado</button>
+          <button class="db-tab" data-tab="db-patterns-analysis">Patrones Especiales</button>
+          <button class="db-tab" data-tab="db-strategies">Estrategias</button>
+      </div>
+
+      <!-- Contenido de Tabs Dashboard -->
+      <div class="db-tab-content active" id="db-basic-analysis">
+          <div class="db-probability-legend">
+              <div class="db-legend-item">
+                  <div class="db-legend-color db-high-prob"></div>
+                  <span>Alta (&gt;20%)</span>
+              </div>
+              <div class="db-legend-item">
+                  <div class="db-legend-color db-medium-prob"></div>
+                  <span>Media (5-20%)</span>
+              </div>
+              <div class="db-legend-item">
+                  <div class="db-legend-color db-low-prob"></div>
+                  <span>Baja (&lt;5%)</span>
+              </div>
+          </div>
+
+          <div class="db-analysis-grid">
+              <!-- Suma Total -->
+              <div class="db-analysis-panel">
+                  <div class="db-analysis-header">
+                      <span class="db-analysis-icon">🎯</span>
+                      <div>
+                          <div class="db-analysis-title">Distribución de Suma Total</div>
+                          <div class="db-analysis-description">Suma de los 6 números (rango: 21-279)</div>
+                      </div>
+                  </div>
+                  <table class="db-stats-table">
+                      <thead>
+                          <tr><th>Rango</th><th>%</th><th>Visual</th></tr>
+                      </thead>
+                      <tbody>
+                          <tr><td>21-80</td><td>0.6%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 0.6%"></div></div></td></tr>
+                          <tr><td>81-120</td><td>13.0%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 13%"></div></div></td></tr>
+                          <tr><td>121-140</td><td>20.0%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 20%"></div></div></td></tr>
+                          <tr><td>141-169</td><td>32.0%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 32%"></div></div></td></tr>
+                          <tr><td>170-190</td><td>20.0%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 20%"></div></div></td></tr>
+                          <tr><td>191-230</td><td>13.0%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 13%"></div></div></td></tr>
+                          <tr><td>231-279</td><td>1.4%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 1.4%"></div></div></td></tr>
+                      </tbody>
+                  </table>
+              </div>
+
+              <!-- Par/Impar -->
+              <div class="db-analysis-panel">
+                  <div class="db-analysis-header">
+                      <span class="db-analysis-icon">⚖️</span>
+                      <div>
+                          <div class="db-analysis-title">Distribución Par/Impar</div>
+                          <div class="db-analysis-description">24 pares vs 25 impares</div>
+                      </div>
+                  </div>
+                  <table class="db-stats-table">
+                      <thead>
+                          <tr><th>Config</th><th>%</th><th>Visual</th></tr>
+                      </thead>
+                      <tbody>
+                          <tr><td>6/0</td><td>0.96%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 0.96%"></div></div></td></tr>
+                          <tr><td>5/1</td><td>24.07%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 24.07%"></div></div></td></tr>
+                          <tr><td>4/2</td><td>43.49%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 43.49%"></div></div></td></tr>
+                          <tr><td>3/3</td><td>28.98%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 28.98%"></div></div></td></tr>
+                          <tr><td>2/4</td><td>2.17%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 2.17%"></div></div></td></tr>
+                          <tr><td>1/5</td><td>0.35%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 0.35%"></div></div></td></tr>
+                          <tr><td>0/6</td><td>1.27%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 1.27%"></div></div></td></tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <div class="db-tab-content" id="db-advanced-analysis">
+          <div class="db-analysis-grid">
+              <!-- Decenas -->
+              <div class="db-analysis-panel">
+                  <div class="db-analysis-header">
+                      <span class="db-analysis-icon">📈</span>
+                      <div>
+                          <div class="db-analysis-title">Distribución por Decenas</div>
+                          <div class="db-analysis-description">Agrupación por rangos de 10</div>
+                      </div>
+                  </div>
+                  <table class="db-stats-table">
+                      <thead>
+                          <tr><th>Patrón</th><th>%</th><th>Visual</th></tr>
+                      </thead>
+                      <tbody>
+                          <tr><td>2/2/1/1</td><td>38.66%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 38.66%"></div></div></td></tr>
+                          <tr><td>2/1/1/1/1</td><td>30.93%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 30.93%"></div></div></td></tr>
+                          <tr><td>3/2/1</td><td>15.47%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 15.47%"></div></div></td></tr>
+                          <tr><td>2/2/2</td><td>7.73%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 7.73%"></div></div></td></tr>
+                          <tr><td>Otros</td><td>7.21%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 7.21%"></div></div></td></tr>
+                      </tbody>
+                  </table>
+              </div>
+
+              <!-- Consecutivos -->
+              <div class="db-analysis-panel">
+                  <div class="db-analysis-header">
+                      <span class="db-analysis-icon">🔗</span>
+                      <div>
+                          <div class="db-analysis-title">Números Consecutivos</div>
+                          <div class="db-analysis-description">Análisis de secuencias</div>
+                      </div>
+                  </div>
+                  <table class="db-stats-table">
+                      <thead>
+                          <tr><th>Tipo</th><th>%</th><th>Visual</th></tr>
+                      </thead>
+                      <tbody>
+                          <tr><td>Sin consecutivos</td><td>43.62%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 43.62%"></div></div></td></tr>
+                          <tr><td>1 par</td><td>41.10%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 41.10%"></div></div></td></tr>
+                          <tr><td>2 pares</td><td>13.13%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-medium-prob" style="width: 13.13%"></div></div></td></tr>
+                          <tr><td>3+ seguidos</td><td>2.15%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 2.15%"></div></div></td></tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <div class="db-tab-content" id="db-patterns-analysis">
+          <div class="db-analysis-grid">
+              <!-- Terminaciones -->
+              <div class="db-analysis-panel">
+                  <div class="db-analysis-header">
+                      <span class="db-analysis-icon">🎯</span>
+                      <div>
+                          <div class="db-analysis-title">Terminaciones</div>
+                          <div class="db-analysis-description">Análisis de últimos dígitos</div>
+                      </div>
+                  </div>
+                  <table class="db-stats-table">
+                      <thead>
+                          <tr><th>Patrón</th><th>%</th><th>Visual</th></tr>
+                      </thead>
+                      <tbody>
+                          <tr><td>Todas diferentes</td><td>64.61%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 64.61%"></div></div></td></tr>
+                          <tr><td>2 iguales</td><td>32.31%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-high-prob" style="width: 32.31%"></div></div></td></tr>
+                          <tr><td>Dos pares iguales</td><td>2.75%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 2.75%"></div></div></td></tr>
+                          <tr><td>3+ iguales</td><td>0.34%</td><td><div class="db-perc-bar"><div class="db-perc-fill db-low-prob" style="width: 0.34%"></div></div></td></tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <div class="db-tab-content" id="db-strategies">
+          <div class="db-strategies-container">
+              <div class="db-strategy-card db-strat-balanced">
+                  <div class="db-strat-title">🏆 Estrategia Equilibrada</div>
+                  <p>Suma: 121-190 | Par/Impar: 4/2 o 3/3 | Bajos/Altos: 3/3 o 4/2</p>
+                  <div class="db-strat-result">Cubre ~18% con alta probabilidad natural.</div>
+              </div>
+              <div class="db-strategy-card db-strat-conservative">
+                  <div class="db-strat-title">🎲 Estrategia Conservadora</div>
+                  <p>Suma: 101-210 | Par/Impar: 5/1 a 2/4 | Cobertura amplia</p>
+                  <div class="db-strat-result">Mayor cobertura, menor especialización.</div>
+              </div>
+              <div class="db-strategy-card db-strat-aggressive">
+                  <div class="db-strat-title">⚡ Estrategia Agresiva</div>
+                  <p>Suma: 141-169 | Par/Impar: 3/3 | Bajos/Altos: 3/3</p>
+                  <div class="db-strat-result">Máxima especialización estadística.</div>
+              </div>
+          </div>
+      </div>
+
+    </div>
+
+    <div class="saved-tickets-section">
+      <div class="saved-tickets-header-controls">
+          <h3>📂 Boletos Guardados</h3>
+      </div>
+      <div class="saved-tickets" id="savedTickets">
+          <div style="color:#666; text-align: center; padding: 20px;">No tienes boletos guardados</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="gameSelectionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Seleccionar Juego</h3>
+            <p>Elige la base de datos oficial para cargar:</p>
+        </div>
+        <div class="game-selection-list modal-body" id="gameSelectionList">
+            <!-- Dinámicamente cargado -->
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closeGameSelectionBtn">Cancelar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="playOnlineModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🌐 Jugar Online</h3>
+            <p>Selecciona el juego para abrir la web oficial:</p>
+        </div>
+        <div class="game-selection-list modal-body" id="playOnlineList" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Dinámicamente cargado -->
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closePlayOnlineModalBtn">Cerrar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="saveFilterModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>💾 Guardar Configuración de Filtros</h3>
+            <p>Asigna un nombre a esta configuración:</p>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="filterPresetName" class="modal-input" style="width: 100%;" placeholder="Ej: Filtros Conservadores">
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closeSaveFilterBtn">Cancelar</button>
+            <button class="modal-btn confirm" id="confirmSaveFilterBtn">Guardar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="loadFilterModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📂 Mis Configuraciones de Filtros</h3>
+            <p>Selecciona una configuración para cargar:</p>
+        </div>
+        <div id="filterPresetsList" class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Presets injected here -->
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closeLoadFilterBtn">Cerrar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="contactModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✉️ Contacto y Sugerencias</h3>
+            <p>Tu opinión nos ayuda a mejorar DataLotto49.</p>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold;">Mensaje ✏️</label>
+                <textarea id="contactMessage" class="modal-input" style="width: 100%; height: 120px; resize: none; padding: 10px;" placeholder="Escribe aquí tu sugerencia, pregunta o comentario..."></textarea>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold;">Tu Email (Opcional)</label>
+                <input type="email" id="contactEmail" class="modal-input" style="width: 100%;" placeholder="ejemplo@correo.com">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closeContactBtn">Cancelar</button>
+            <button class="modal-btn confirm" id="sendContactBtn">Enviar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="configUrlsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🔗 Configurar Enlaces</h3>
+            <p>Modifica las URLs de acceso a los juegos:</p>
+        </div>
+        <div class="config-urls-form modal-body" style="display: flex; flex-direction: column; gap: 15px; text-align: left;">
+            <div class="input-group">
+                <label style="display: block; font-size: 0.8rem; color: var(--gray); margin-bottom: 5px;">URL Bonoloto:</label>
+                <input type="text" id="urlInputBonoloto" class="modal-input" style="width: 100%;" placeholder="https://...">
+            </div>
+            <div class="input-group">
+                <label style="display: block; font-size: 0.8rem; color: var(--gray); margin-bottom: 5px;">URL Primitiva:</label>
+                <input type="text" id="urlInputPrimitiva" class="modal-input" style="width: 100%;" placeholder="https://...">
+            </div>
+            <div class="input-group">
+                <label style="display: block; font-size: 0.8rem; color: var(--gray); margin-bottom: 5px;">URL Euromillones:</label>
+                <input type="text" id="urlInputEuromillones" class="modal-input" style="width: 100%;" placeholder="https://...">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="closeConfigUrlsBtn">Cancelar</button>
+            <button class="modal-btn confirm" id="saveConfigUrlsBtn">Guardar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loadingModal">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <h3 id="loadingText">Generando combinación...</h3>
+      <p id="loadingInfo">Iniciando búsqueda...</p>
+    </div>
+  </div>
+  
+  <div class="filter-spinner-overlay" id="filterSpinnerOverlay">
+      <div class="loading-spinner"></div>
+  </div>
+
+  <div class="modal" id="disclaimerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚠️ Disclaimer Ético</h3>
+      </div>
+      <div class="modal-body" style="line-height: 1.6; color: var(--dark);">
+        <p><strong>IMPORTANTE:</strong></p>
+        <p>Esta aplicación es una herramienta de entretenimiento y análisis estadístico. Los
+        números de lotería son completamente aleatorios.</p>
+        <p><strong>Recuerda:</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>No hay forma de predecir números ganadores</li>
+        <li>Juega solo lo que puedas permitirte perder</li>
+        <li>El juego puede crear adicción</li>
+        <li>Esta app no garantiza premios</li>
+        <li>Los algoritmos son para análisis, no predicción</li>
+        <li>Los datos históricos no predicen futuros resultados</li>
+        <li>Los filtros matemáticos solo organizan probabilidades</li>
+        <li>Las estrategias no aumentan las posibilidades reales de ganar</li>
+        </ul>
+        <p><strong>Responsabilidad:</strong></p>
+        <p>El usuario es completamente responsable de sus decisiones de juego. Esta
+        herramienta no fomenta el juego compulsivo.</p>
+        <p><strong>Ayuda:</strong></p>
+        <p>Si tienes problemas con el juego, busca ayuda profesional. En España:
+        <strong>900 200 225</strong> (Línea de ayuda contra la ludopatía)</p>
+        <p style="margin-top: 15px; padding: 10px; background: #fef2f2; border-left: 4px solid
+        var(--danger); border-radius: 4px;">
+        <strong>AVISO LEGAL:</strong> Esta aplicación es solo para entretenimiento. Los
+        desarrolladores no se responsabilizan por pérdidas económicas derivadas del uso de esta
+        herramienta.
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn confirm" id="disclaimerCloseBtn">Entendido</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="validationModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✅ Validar Boleto</h3>
+            <p>Introduce los 6 números ganadores separados por espacios, comas o puntos.</p>
+        </div>
+        <input type="text" id="winningNumbersInput" class="modal-input" placeholder="7, 12. 23 31,42.49" maxlength="23">
+        <div id="winningStarsInputSection" style="display: none; margin-top: 10px;">
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Introduce las estrellas ganadoras:</p>
+            <input type="text" id="winningStarsInput" class="modal-input" placeholder="2 11" maxlength="10">
+        </div>
+        <div id="validationResults" class="modal-body"></div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="cancelValidationBtn">Cerrar</button>
+            <button class="modal-btn confirm" id="confirmValidationBtn">Validar</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <input type="file" id="fileInput" accept=".csv,.db" class="hidden-file-input" multiple>
+
+  <div class="modal" id="aiPredictionModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">🤖 Análisis Predictivo IA (Gemini)</h3>
+            <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem;">Basado en patrones históricos y tendencias 2026</p>
+        </div>
+        <div class="modal-body" id="aiPredictionContent" style="padding: 20px; max-height: 70vh; overflow-y: auto; line-height: 1.6;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; color: var(--gray);">
+                <div class="loading-spinner" style="margin-bottom: 15px;"></div>
+                <p>Gemini está analizando los datos históricos...</p>
+                <small>Esto puede tardar unos segundos</small>
+            </div>
+        </div>
+        <div class="modal-actions" style="padding: 15px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="modal-btn cancel" id="closeAiPredictionBtn">Cerrar</button>
+            <button class="modal-btn confirm" id="applyAiNumbersBtn" style="display: none;">Aplicar Sugerencias</button>
+        </div>
+    </div>
+  </div>
+
+  <script type="module" src="index.tsx"></script>
+</body>
+</html>
