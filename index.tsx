@@ -504,7 +504,7 @@ class DataLotto49Advanced {
         }
 
         // Stars
-        if (maxStars > 0) {
+        if (maxStars > 1) {
             const starSum = stars.reduce((a, b) => a + b, 0);
             if (this.filters.starSum) {
                 results.starSum.count++;
@@ -2279,6 +2279,22 @@ class DataLotto49Advanced {
     if (this.currentGame.maxStars > 0 && starsGrid && starsGridContainer) {
       starsGridContainer.style.display = 'block';
       starsGrid.innerHTML = '';
+      
+      const starsGridIcon = document.getElementById('starsGridIcon');
+      const starsGridText = document.getElementById('starsGridText');
+      if (starsGridIcon && starsGridText) {
+          if (this.currentGame.id === 'gordo') {
+              starsGridIcon.textContent = '🔑';
+              starsGridText.textContent = 'Selección de Clave (Llave)';
+          } else if (this.currentGame.id === 'eurodreams') {
+              starsGridIcon.textContent = '🌙';
+              starsGridText.textContent = 'Selección de Sueños';
+          } else {
+              starsGridIcon.textContent = '⭐';
+              starsGridText.textContent = 'Selección de Estrellas';
+          }
+      }
+
       const isGordo = this.currentGame.id === 'gordo';
       const startIdx = isGordo ? 0 : 1;
       const endIdx = isGordo ? this.currentGame.starRange - 1 : this.currentGame.starRange;
@@ -2468,7 +2484,7 @@ class DataLotto49Advanced {
     // 7. Star Filters Section
     const starSection = document.getElementById('starFiltersSection');
     if (starSection) {
-        if (maxStars > 0) {
+        if (maxStars > 1) {
             starSection.style.display = 'block';
             this.renderStarFilterOptions();
         } else {
@@ -2500,13 +2516,13 @@ class DataLotto49Advanced {
       html += '</div>';
 
       if (this.currentGame.maxStars > 0) {
-          const dreamName = this.currentGame.id === 'eurodreams' ? 'Sueños' : (this.currentGame.id === 'gordo' ? 'Números Clave' : 'Estrellas');
-          html += `<label style="margin-top: 20px; display: block; font-weight: 600; color: var(--dark); margin-bottom: 8px;">¿Cuántos/as ${dreamName} quieres seleccionar?</label>`;
+          const dreamName = this.currentGame.id === 'eurodreams' ? 'Sueños' : (this.currentGame.id === 'gordo' ? 'Clave 🔑' : 'Estrellas ⭐');
+          html += `<label style="margin-top: 20px; display: block; font-weight: 600; color: var(--dark); margin-bottom: 8px;">¿Cuántos/as ${this.currentGame.id === 'gordo' ? 'Claves 🔑' : dreamName} quieres seleccionar?</label>`;
           html += '<div class="star-multiple-options-container" style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px;">';
           const starMin = this.currentGame.maxStars;
           const starOptions = [starMin, starMin + 1, starMin + 2];
           starOptions.forEach(s => {
-              html += `<div class="star-multiple-option ${s === starMin ? 'active' : ''}" data-stars="${s}">${s} ${dreamName}</div>`;
+              html += `<div class="star-multiple-option ${s === starMin ? 'active' : ''}" data-stars="${s}">${s} ${this.currentGame.id === 'gordo' ? 'Clave 🔑' : dreamName}</div>`;
           });
           html += '</div>';
       }
@@ -2681,7 +2697,7 @@ class DataLotto49Advanced {
         // FIX: Cast to HTMLElement to access dataset
         this.toggleCollapse((h as HTMLElement).dataset.target!)
     }));
-    document.querySelectorAll('.strategy-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.strategy-buttons .strategy-btn').forEach(btn => btn.addEventListener('click', () => {
         // FIX: Cast to HTMLElement to access dataset
         this.updateStrategyUI((btn as HTMLElement).dataset.strategy!)
     }));
@@ -2958,7 +2974,7 @@ class DataLotto49Advanced {
   }
 
   addNumber(number: number, type: 'number' | 'star' = 'number') {
-    const strategy = (document.querySelector('.strategy-btn.active') as HTMLElement)?.dataset.strategy;
+    const strategy = (document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement)?.dataset.strategy || 'simple';
     const isMultiple = strategy === 'multiple';
     const isEuromillones = this.currentGame.id === 'euromillones';
 
@@ -3214,8 +3230,8 @@ class DataLotto49Advanced {
 
   // ===== UI STRATEGY =====
   updateStrategyUI(strategy: string) {
-    document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`.strategy-btn[data-strategy="${strategy}"]`)?.classList.add('active');
+    document.querySelectorAll('.strategy-buttons .strategy-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.strategy-buttons .strategy-btn[data-strategy="${strategy}"]`)?.classList.add('active');
     const winningOptions = document.getElementById('winningOptions') as HTMLElement;
     const multipleOptions = document.getElementById('multipleNumbersOptions') as HTMLElement;
     const generateBtn = document.getElementById('generateBtn');
@@ -3258,7 +3274,11 @@ class DataLotto49Advanced {
       return;
     }
 
-    const strategy = (document.querySelector('.strategy-btn.active') as HTMLElement)?.dataset.strategy;
+    let strategy = (document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement)?.dataset.strategy;
+    if (!strategy) {
+        strategy = 'simple';
+        this.updateStrategyUI('simple');
+    }
     let combinations: number[][] = [];
     let starsCombinations: number[][] = [];
 
@@ -3606,7 +3626,7 @@ class DataLotto49Advanced {
       }
 
       // 13. ESTRELLAS: checked in similar lazy order
-      if (maxStars > 0 && stars.length === maxStars) {
+      if (maxStars > 1 && stars.length === maxStars) {
           const starSum = stars.reduce((a, b) => a + b, 0);
           if (this.filters.starSum) {
               if (starSum < this.filters.starSum.min || starSum > this.filters.starSum.max) return false;
@@ -4401,15 +4421,37 @@ class DataLotto49Advanced {
     if (!this.currentValidatingTicket) return;
     
     const winningStarsInputSection = document.getElementById('winningStarsInputSection');
+    const winningStarsLabel = document.getElementById('winningStarsLabel');
+    const winningStarsInput = document.getElementById('winningStarsInput') as HTMLInputElement;
+    
     if (winningStarsInputSection) {
-        winningStarsInputSection.style.display = this.currentValidatingTicket.gameId === 'euromillones' ? 'block' : 'none';
+        const gameId = this.currentValidatingTicket.gameId || 'bonoloto';
+        const game = GAMES[gameId];
+        const maxStars = game?.maxStars || 0;
+        
+        if (maxStars > 0) {
+            winningStarsInputSection.style.display = 'block';
+            if (winningStarsLabel && winningStarsInput) {
+                if (gameId === 'gordo') {
+                    winningStarsLabel.innerHTML = '🔑 Introduce el Número Clave ganador (0-9):';
+                    winningStarsInput.placeholder = 'Por ejemplo: 5';
+                } else if (gameId === 'eurodreams') {
+                    winningStarsLabel.innerHTML = '🌙 Introduce el Sueño ganador (1-5):';
+                    winningStarsInput.placeholder = 'Por ejemplo: 3';
+                } else {
+                    winningStarsLabel.innerHTML = '⭐ Introduce las estrellas ganadoras (1-12):';
+                    winningStarsInput.placeholder = 'Por ejemplo: 2 11';
+                }
+            }
+        } else {
+            winningStarsInputSection.style.display = 'none';
+        }
     }
 
     const validationResults = document.getElementById('validationResults');
     if(validationResults) validationResults.innerHTML = '';
     const winningNumbersInput = document.getElementById('winningNumbersInput') as HTMLInputElement;
     if(winningNumbersInput) winningNumbersInput.value = '';
-    const winningStarsInput = document.getElementById('winningStarsInput') as HTMLInputElement;
     if(winningStarsInput) winningStarsInput.value = '';
     this.toggleModal('validationModal', true);
   }
@@ -4433,9 +4475,18 @@ class DataLotto49Advanced {
 
     let winningStars: number[] = [];
     if (maxStars > 0 && starsInputEl) {
-        winningStars = Array.from(new Set(starsInputEl.value.split(/[ ,.]+/).map(n => parseInt(n)).filter(n => !isNaN(n) && n > 0 && n <= starRange)));
+        const isGordo = gameId === 'gordo';
+        winningStars = Array.from(new Set(starsInputEl.value.split(/[ ,.]+/).map(n => parseInt(n)).filter(n => {
+            if (isNaN(n)) return false;
+            if (isGordo) {
+                return n >= 0 && n < starRange;
+            } else {
+                return n > 0 && n <= starRange;
+            }
+        })));
         if (winningStars.length !== maxStars) {
-            this.showToast(`Introduce ${maxStars} estrellas ganadoras válidas.`, 'error');
+            const starLabelName = gameId === 'gordo' ? 'clave válida (0-9)' : (gameId === 'eurodreams' ? 'sueño válido (1-5)' : `${maxStars} estrellas ganadoras válidas`);
+            this.showToast(`Introduce una ${starLabelName}.`, 'error');
             return;
         }
     }
@@ -4772,25 +4823,57 @@ class DataLotto49Advanced {
   }
 
   openConfigUrlsModal() {
-    const bonolotoInput = document.getElementById('urlInputBonoloto') as HTMLInputElement;
-    const primitivaInput = document.getElementById('urlInputPrimitiva') as HTMLInputElement;
-    const euromillonesInput = document.getElementById('urlInputEuromillones') as HTMLInputElement;
-    if (bonolotoInput) bonolotoInput.value = this.customGameUrls.bonoloto;
-    if (primitivaInput) primitivaInput.value = this.customGameUrls.primitiva;
-    if (euromillonesInput) euromillonesInput.value = this.customGameUrls.euromillones;
+    const container = document.getElementById('configUrlsContainer');
+    if (container) {
+        container.innerHTML = '';
+        
+        // Define a map for nice names and flags
+        const names: { [key: string]: string } = {
+            bonoloto: '🇪🇸 Bonoloto',
+            primitiva: '🇪🇸 Primitiva',
+            gordo: '🏆 El Gordo',
+            euromillones: '🇪🇺 Euromillones',
+            eurodreams: '🌙 EuroDreams'
+        };
+
+        Object.keys(this.customGameUrls).forEach(key => {
+            const gameName = names[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+            
+            const group = document.createElement('div');
+            group.className = 'input-group';
+            group.style.display = 'flex';
+            group.style.flexDirection = 'column';
+            group.style.gap = '5px';
+            
+            const label = document.createElement('label');
+            label.style.cssText = 'display: block; font-size: 0.85rem; color: var(--gray); font-weight: 600;';
+            label.textContent = `URL ${gameName}:`;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = `urlInput_${key}`;
+            input.className = 'modal-input';
+            input.style.width = '100%';
+            input.value = this.customGameUrls[key] || '';
+            input.placeholder = 'https://...';
+            
+            group.appendChild(label);
+            group.appendChild(input);
+            container.appendChild(group);
+        });
+    }
     
     this.closeSidebar();
     this.toggleModal('configUrlsModal', true);
   }
 
   saveConfigUrls() {
-    const bonolotoInput = document.getElementById('urlInputBonoloto') as HTMLInputElement;
-    const primitivaInput = document.getElementById('urlInputPrimitiva') as HTMLInputElement;
-    const euromillonesInput = document.getElementById('urlInputEuromillones') as HTMLInputElement;
-    
-    if (bonolotoInput) this.customGameUrls.bonoloto = bonolotoInput.value;
-    if (primitivaInput) this.customGameUrls.primitiva = primitivaInput.value;
-    if (euromillonesInput) this.customGameUrls.euromillones = euromillonesInput.value;
+    Object.keys(this.customGameUrls).forEach(key => {
+        const input = document.getElementById(`urlInput_${key}`) as HTMLInputElement;
+        if (input) {
+            this.customGameUrls[key] = input.value;
+        }
+    });
     
     this.saveState();
     this.toggleModal('configUrlsModal', false);
