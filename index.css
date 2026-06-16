@@ -1455,6 +1455,19 @@ body {
   display: block;
 }
 
+.ticket.conflict {
+  background: linear-gradient(135deg, #fdf2f2, #fff5f5) !important;
+  border: 2px dashed #f87171 !important;
+}
+
+.ticket.conflict .ticket-header {
+  border-bottom: 2px solid #fee2e2 !important;
+}
+
+.ticket.conflict .ticket-header h4 {
+  color: #dc2626 !important;
+}
+
 .ticket-header {
   display: flex;
   justify-content: space-between;
@@ -2553,4 +2566,39 @@ textarea.modal-input {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ===== ENHANCEMENTS FOR MOBILE TOUCH & APPS WRAPPERS ===== */
+@media (hover: none) {
+  .number-ball:hover {
+    transform: none !important;
+    background: #f1f5f9;
+  }
+  .number-ball.selected:hover {
+    background: var(--primary) !important;
+  }
+  .generate-btn:hover, .strategy-btn:hover, .save-btn:hover, .share-btn:hover {
+    background-color: inherit;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Active feedback animation on tap targets */
+.number-ball:active, 
+.strategy-btn:active, 
+.selection-mode-btn:active, 
+.collapse-btn:active, 
+.generate-btn:active, 
+.save-btn:active, 
+.share-btn:active {
+    transform: scale(0.94) !important;
+    opacity: 0.88;
+    transition: transform 0.08s ease-out;
+}
+
+/* Scroll smooth indicators */
+.sidebar, .modal-content, .filters-panel {
+    -webkit-overflow-scrolling: touch;
+}
+
 

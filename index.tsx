@@ -2,6 +2,7 @@
 // SISTEMA DE ALMACENAMIENTO PERSISTENTE
 // ============================================
 import { GoogleGenAI } from "@google/genai";
+import { GAMES, GameConfig } from "./game-configs";
 
 // FIX: Added interfaces for strong typing of complex objects.
 interface Draw {
@@ -13,55 +14,6 @@ interface Draw {
   reintegro?: number; // Added for 6/49
   sum: number;
 }
-
-interface GameConfig {
-  id: string;
-  name: string;
-  maxNumbers: number;
-  numberRange: number;
-  maxStars: number;
-  starRange: number;
-  gridCols: number;
-}
-
-const GAMES: { [key: string]: GameConfig } = {
-  'lotto649': {
-    id: 'lotto649',
-    name: 'Lotto 6/49',
-    maxNumbers: 6,
-    numberRange: 49,
-    maxStars: 0,
-    starRange: 0,
-    gridCols: 7
-  },
-  'euromillones': {
-    id: 'euromillones',
-    name: 'Euromillones',
-    maxNumbers: 5,
-    numberRange: 50,
-    maxStars: 2,
-    starRange: 12,
-    gridCols: 10
-  },
-  'eurodreams': {
-    id: 'eurodreams',
-    name: 'EuroDreams',
-    maxNumbers: 6,
-    numberRange: 40,
-    maxStars: 1,
-    starRange: 5,
-    gridCols: 10
-  },
-  'gordo': {
-    id: 'gordo',
-    name: 'El Gordo',
-    maxNumbers: 5,
-    numberRange: 54,
-    maxStars: 1,
-    starRange: 10,
-    gridCols: 9
-  }
-};
 
 interface Ticket {
   date: string; // Creation date
@@ -90,7 +42,8 @@ interface Filters {
   agrupDecenas: string[];
   sumaDigitos: { min: number; max: number };
   desviacion: { min: number; max: number };
-  entropy: { min: number; max: number };
+  entropyTerminaciones: { min: number; max: number };
+  entropyIntervalos: { min: number; max: number };
   geometric: { exclude: string[]; favor: string[] };
   // Star filters
   starSum: { min: number; max: number };
@@ -198,11 +151,13 @@ class DataLotto49Advanced {
     this.favoriteNumbers = new Set();
     this.favoriteStars = new Set();
     this.favoriteGames = new Set();
-    this.currentGame = GAMES['lotto649'];
+    this.currentGame = GAMES['bonoloto'];
     this.customGameUrls = {
-        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta/?access=headercms&lang=es',
+        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta',
         primitiva: 'https://juegos.loteriasyapuestas.es/jugar/la-primitiva/apuesta',
-        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta'
+        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta/?access=headercms&lang=es',
+        eurodreams: 'https://juegos.loteriasyapuestas.es/jugar/eurodreams/apuesta',
+        gordo: 'https://juegos.loteriasyapuestas.es/jugar/gordo-primitiva/apuesta/?access=headercms&lang=es'
     };
     this.filterPresets = [];
     this.gameFilters = {};
@@ -272,6 +227,583 @@ class DataLotto49Advanced {
         daySelect.value = String(new Date().getDay());
     }
     this.updateBigDataPanel();
+
+    // Trigger runSelfDiagnostics on startup
+    setTimeout(() => {
+        try {
+            this.runSelfDiagnostics();
+        } catch (diagErr) {
+            console.error("No se pudo iniciar el auto-diagnóstico:", diagErr);
+        }
+    }, 100);
+  }
+
+  runSelfDiagnostics() {
+    console.log("=== INICIANDO PRUEBAS DE DIAGNÓSTICO DATALOTTO PLATAFORMA ===");
+    const diagResults: { name: string; status: 'PASS' | 'WARN' | 'FAIL'; msg: string }[] = [];
+
+    // Test 1: LocalStorage Access
+    try {
+        const testKey = '__datalotto_diag_test__';
+        localStorage.setItem(testKey, '1');
+        const retrieved = localStorage.getItem(testKey);
+        localStorage.removeItem(testKey);
+        if (retrieved === '1') {
+            diagResults.push({ name: 'Acceso a LocalStorage', status: 'PASS', msg: 'Lectura y escritura correcta de persistencia en caché' });
+        } else {
+            diagResults.push({ name: 'Acceso a LocalStorage', status: 'WARN', msg: 'No se persistieron los datos correctamente' });
+        }
+    } catch (e: any) {
+        diagResults.push({ name: 'Acceso a LocalStorage', status: 'FAIL', msg: `Sandbox/WebView limita almacenamiento: ${e.message}` });
+    }
+
+    // Test 2: DOM elements integrity check
+    const elementsToVerify = ['numbersGrid', 'generateBtn', 'savedTickets', 'savedTicketsGameFilter'];
+    const missingElements = elementsToVerify.filter(id => !document.getElementById(id));
+    if (missingElements.length === 0) {
+        diagResults.push({ name: 'Integridad del DOM', status: 'PASS', msg: 'Todos los elementos y selectores de la app cargados correctamente' });
+    } else {
+        diagResults.push({ name: 'Integridad del DOM', status: 'FAIL', msg: `Elementos de la interfaz ausentes: ${missingElements.join(', ')}` });
+    }
+
+    // Test 3: Math filters check
+    try {
+        const testCombo = [1, 2, 3, 4, 5, 6];
+        const stats = this.getCombinationStats(testCombo);
+        if (stats && stats.suma === 21) {
+            diagResults.push({ name: 'Motor Matemático Interno', status: 'PASS', msg: 'Estadísticas y ecuaciones probabilísticas estables' });
+        } else {
+            diagResults.push({ name: 'Motor Matemático Interno', status: 'FAIL', msg: 'La suma no coincide con el cálculo del motor' });
+        }
+    } catch (mathErr: any) {
+        diagResults.push({ name: 'Motor Matemático Interno', status: 'FAIL', msg: `Fallo de cálculo matemático: ${mathErr.message}` });
+    }
+
+    console.table(diagResults);
+
+    // Dynamic State indicator Badge on top Header
+    const brandElement = document.querySelector('.logo') || document.querySelector('.header');
+    if (brandElement) {
+        // Safe remove if already exists
+        document.getElementById('datalotto-diagnostics-badge')?.remove();
+
+        const badge = document.createElement('span');
+        badge.id = 'datalotto-diagnostics-badge';
+        badge.style.cssText = 'font-size: 0.75rem; margin-left: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-weight: 500; cursor: pointer; transition: transform 0.2s;';
+        
+        const hasFailures = diagResults.some(r => r.status === 'FAIL');
+        const hasWarnings = diagResults.some(r => r.status === 'WARN');
+        
+        if (hasFailures) {
+            badge.style.color = '#ef4444';
+            badge.style.background = '#fef2f2';
+            badge.style.border = '1px solid #fecaca';
+            badge.textContent = '● Diagnóstico: Crítico 🚨';
+        } else if (hasWarnings) {
+            badge.style.color = '#f97316';
+            badge.style.background = '#fffaf5';
+            badge.style.border = '1px solid #fed7aa';
+            badge.textContent = '● Diagnóstico: Aviso ⚠️';
+        } else {
+            badge.style.color = '#10b981';
+            badge.style.background = '#f0fdf4';
+            badge.style.border = '1px solid #bbf7d0';
+            badge.textContent = '● Plataforma multi-juego: OK ✓';
+        }
+
+        badge.onclick = (e) => {
+            e.stopPropagation();
+            this.showToast(`Estado de la app: ${hasFailures ? 'Requiere atención' : 'Perfecto y listo para lanzar!'}. Revisa la consola de depuración.`, hasFailures ? 'error' : 'success');
+        };
+
+        brandElement.appendChild(badge);
+    }
+  }
+
+  runFilterAudit(sampleSize = 500) {
+    const availableUniverse = this.getAvailableUniverse('number');
+    const availableStars = this.getAvailableUniverse('star');
+    const maxNumbers = this.currentGame.maxNumbers;
+    const maxStars = this.currentGame.maxStars;
+
+    const results: { [key: string]: { name: string; count: number; passed: number; percent: number } } = {
+      sum: { name: 'Rango de Suma Total', count: 0, passed: 0, percent: 100 },
+      terminacionesDistintas: { name: 'Variedad de Terminaciones', count: 0, passed: 0, percent: 100 },
+      parImpar: { name: 'Balance Par/Impar', count: 0, passed: 0, percent: 100 },
+      bajosAltos: { name: 'Balance Bajos/Altos', count: 0, passed: 0, percent: 100 },
+      primos: { name: 'Cantidad de Primos', count: 0, passed: 0, percent: 100 },
+      distancia: { name: 'Distancia entre Números', count: 0, passed: 0, percent: 100 },
+      sumaDigitos: { name: 'Suma de Dígitos', count: 0, passed: 0, percent: 100 },
+      consecutivos: { name: 'Bloques Consecutivos', count: 0, passed: 0, percent: 100 },
+      agrupDecenas: { name: 'Agrupación por Decenas', count: 0, passed: 0, percent: 100 },
+      desviacion: { name: 'Desviación Estándar', count: 0, passed: 0, percent: 100 },
+      entropyTerminaciones: { name: 'Entropía (Terminaciones)', count: 0, passed: 0, percent: 100 },
+      entropyIntervalos: { name: 'Entropía (Intervalos)', count: 0, passed: 0, percent: 100 },
+      geometric: { name: 'Exclusión Geométrica', count: 0, passed: 0, percent: 100 }
+    };
+
+    if (maxStars > 0) {
+      results.starSum = { name: 'Suma de Estrellas', count: 0, passed: 0, percent: 100 };
+      results.starParImpar = { name: 'Estrellas Par/Impar', count: 0, passed: 0, percent: 100 };
+      results.starBajosAltos = { name: 'Estrellas Bajos/Altos', count: 0, passed: 0, percent: 100 };
+      results.starSumaDigitos = { name: 'Estrellas Suma de Dígitos', count: 0, passed: 0, percent: 100 };
+      results.starPrimos = { name: 'Estrellas Primos', count: 0, passed: 0, percent: 100 };
+      results.starConsecutivos = { name: 'Estrellas Consecutivas', count: 0, passed: 0, percent: 100 };
+      results.starDistancia = { name: 'Estrellas Distancia', count: 0, passed: 0, percent: 100 };
+    }
+
+    let actualSampleSize = 0;
+    for (let i = 0; i < sampleSize; i++) {
+        const combo = this.generateRandomCombination(availableUniverse, maxNumbers);
+        const stars = maxStars > 0 ? this.generateRandomCombination(availableStars, maxStars) : [];
+        if (combo.length !== maxNumbers) continue;
+        if (maxStars > 0 && stars.length !== maxStars) continue;
+
+        actualSampleSize++;
+
+        // Examen de Suma
+        let sum = 0;
+        for (let j = 0; j < maxNumbers; j++) sum += combo[j];
+        if (this.filters.sum) {
+            results.sum.count++;
+            if (sum >= this.filters.sum.min && sum <= this.filters.sum.max) results.sum.passed++;
+        }
+
+        // Variedad terminaciones
+        if (this.filters.terminacionesDistintas && this.filters.terminacionesDistintas.length > 0) {
+            results.terminacionesDistintas.count++;
+            const uniqueEndings = new Set(combo.map(n => n % 10)).size;
+            if (this.filters.terminacionesDistintas.includes(uniqueEndings)) results.terminacionesDistintas.passed++;
+        }
+
+        // Par Impar
+        if (this.filters.parImpar && this.filters.parImpar.length > 0) {
+            results.parImpar.count++;
+            const evens = combo.filter(n => n % 2 === 0).length;
+            const parImparKey = `${evens}/${maxNumbers - evens}`;
+            if (this.filters.parImpar.includes(parImparKey)) results.parImpar.passed++;
+        }
+
+        // Bajos Altos
+        if (this.filters.bajosAltos && this.filters.bajosAltos.length > 0) {
+            results.bajosAltos.count++;
+            const midPoint = Math.floor(this.currentGame.numberRange / 2);
+            const lows = combo.filter(n => n <= midPoint).length;
+            const bajosAltosKey = `${lows}/${maxNumbers - lows}`;
+            if (this.filters.bajosAltos.includes(bajosAltosKey)) results.bajosAltos.passed++;
+        }
+
+        // Primos
+        if (this.filters.primos) {
+            results.primos.count++;
+            const primesCount = combo.filter(n => this.primes.has(n)).length;
+            if (primesCount >= this.filters.primos.min && primesCount <= this.filters.primos.max) results.primos.passed++;
+        }
+
+        // Distancia
+        if (this.filters.distancia) {
+            results.distancia.count++;
+            const sortedCombo = [...combo].sort((a,b) => a-b);
+            let passDist = true;
+            for (let j = 0; j < sortedCombo.length - 1; j++) {
+                const diff = sortedCombo[j+1] - sortedCombo[j];
+                if (diff < this.filters.distancia.min || diff > this.filters.distancia.max) {
+                    passDist = false;
+                    break;
+                }
+            }
+            if (passDist) results.distancia.passed++;
+        }
+
+        // Suma Digitos
+        if (this.filters.sumaDigitos) {
+            results.sumaDigitos.count++;
+            const digitSum = combo.reduce((s, num) => s + (num < 10 ? num : (num % 10 + Math.floor(num/10))), 0);
+            if (digitSum >= this.filters.sumaDigitos.min && digitSum <= this.filters.sumaDigitos.max) results.sumaDigitos.passed++;
+        }
+
+        // Consecutivos
+        if (this.filters.consecutivos && this.filters.consecutivos.length > 0) {
+            results.consecutivos.count++;
+            const sorted = [...combo].sort((a,b)=>a-b);
+            let consecutivePattern = '';
+            let count = 1;
+            for (let j = 1; j < sorted.length; j++) {
+                if (sorted[j] === sorted[j-1] + 1) {
+                    count++;
+                } else {
+                    consecutivePattern += count;
+                    count = 1;
+                }
+            }
+            consecutivePattern += count;
+            const consecPatternSorted = consecutivePattern.split('').sort((a,b)=>Number(b)-Number(a)).join('/');
+            if (this.filters.consecutivos.includes(consecPatternSorted)) results.consecutivos.passed++;
+        }
+
+        // Decenas
+        if (this.filters.agrupDecenas && this.filters.agrupDecenas.length > 0) {
+            results.agrupDecenas.count++;
+            const tens: { [key: number]: number } = {};
+            combo.forEach(n => {
+                const ten = Math.floor((n-1)/10);
+                tens[ten] = (tens[ten] || 0) + 1;
+            });
+            const tensGroups = Object.values(tens).sort((a,b)=>b-a).join('/');
+            if (this.filters.agrupDecenas.includes(tensGroups)) results.agrupDecenas.passed++;
+        }
+
+        // Desviacion
+        if (this.filters.desviacion) {
+            results.desviacion.count++;
+            const mean = sum / maxNumbers;
+            const stdDev = Math.sqrt(combo.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / maxNumbers);
+            if (stdDev >= this.filters.desviacion.min && stdDev <= this.filters.desviacion.max) results.desviacion.passed++;
+        }
+
+        // Entropía de Terminaciones
+        if (this.filters.entropyTerminaciones) {
+            results.entropyTerminaciones.count++;
+            const endingCounts: { [key: number]: number } = {};
+            combo.forEach(n => {
+                const ending = n % 10;
+                endingCounts[ending] = (endingCounts[ending] || 0) + 1;
+            });
+            const entropyTerm = -Object.values(endingCounts).reduce((s, countVal) => {
+                const p = countVal / maxNumbers;
+                return s + p * Math.log2(p);
+            }, 0);
+            if (entropyTerm >= this.filters.entropyTerminaciones.min && entropyTerm <= this.filters.entropyTerminaciones.max) {
+                results.entropyTerminaciones.passed++;
+            }
+        }
+
+        // Entropía de Intervalos
+        if (this.filters.entropyIntervalos) {
+            results.entropyIntervalos.count++;
+            const sortedCombo = [...combo].sort((a,b) => a-b);
+            const intervalCounts: { [key: number]: number } = {};
+            for (let idx = 0; idx < sortedCombo.length - 1; idx++) {
+                const diff = sortedCombo[idx+1] - sortedCombo[idx];
+                intervalCounts[diff] = (intervalCounts[diff] || 0) + 1;
+            }
+            const numIntervals = maxNumbers - 1;
+            const entropyInt = -Object.values(intervalCounts).reduce((s, countVal) => {
+                const p = countVal / numIntervals;
+                return s + p * Math.log2(p);
+            }, 0);
+            if (entropyInt >= this.filters.entropyIntervalos.min && entropyInt <= this.filters.entropyIntervalos.max) {
+                results.entropyIntervalos.passed++;
+            }
+        }
+
+        // Geometric
+        if (this.filters.geometric && this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
+            results.geometric.count++;
+            if (!this.hasGeometricPattern(combo, this.filters.geometric.exclude)) results.geometric.passed++;
+        }
+
+        // Stars
+        if (maxStars > 0) {
+            const starSum = stars.reduce((a, b) => a + b, 0);
+            if (this.filters.starSum) {
+                results.starSum.count++;
+                if (starSum >= this.filters.starSum.min && starSum <= this.filters.starSum.max) results.starSum.passed++;
+            }
+            if (this.filters.starParImpar && this.filters.starParImpar.length > 0) {
+                results.starParImpar.count++;
+                const starEvens = stars.filter(n => n % 2 === 0).length;
+                const starParImparKey = `${starEvens}/${maxStars-starEvens}`;
+                if (this.filters.starParImpar.includes(starParImparKey)) results.starParImpar.passed++;
+            }
+            if (this.filters.starBajosAltos && this.filters.starBajosAltos.length > 0) {
+                results.starBajosAltos.count++;
+                const starMid = Math.floor(this.currentGame.starRange / 2);
+                const starLows = stars.filter(n => n <= starMid).length;
+                const starBajosAltosKey = `${starLows}/${maxStars-starLows}`;
+                if (this.filters.starBajosAltos.includes(starBajosAltosKey)) results.starBajosAltos.passed++;
+            }
+            if (this.filters.starSumaDigitos) {
+                results.starSumaDigitos.count++;
+                let starDigitSum = 0;
+                stars.forEach(s => {
+                    const sStr = s.toString();
+                    for (let j = 0; j < sStr.length; j++) starDigitSum += parseInt(sStr[j]);
+                });
+                if (starDigitSum >= this.filters.starSumaDigitos.min && starDigitSum <= this.filters.starSumaDigitos.max) results.starSumaDigitos.passed++;
+            }
+            if (this.filters.starPrimos) {
+                results.starPrimos.count++;
+                const starPrimosVal = stars.filter(n => this.primes.has(n)).length;
+                if (starPrimosVal >= this.filters.starPrimos.min && starPrimosVal <= this.filters.starPrimos.max) results.starPrimos.passed++;
+            }
+            if (this.filters.starConsecutivos && this.filters.starConsecutivos.length > 0) {
+                results.starConsecutivos.count++;
+                const sortedStars = [...stars].sort((a,b)=>a-b);
+                let starConsecPattern = '';
+                let sCount = 1;
+                for (let j = 1; j < sortedStars.length; j++) {
+                    if (sortedStars[j] === sortedStars[j-1] + 1) {
+                        sCount++;
+                    } else {
+                        starConsecPattern += sCount;
+                        sCount = 1;
+                    }
+                }
+                starConsecPattern += sCount;
+                const starConsecPatternSorted = starConsecPattern.split('').sort((a,b)=>Number(b)-Number(a)).join('/');
+                if (this.filters.starConsecutivos.includes(starConsecPatternSorted)) results.starConsecutivos.passed++;
+            }
+            if (this.filters.starDistancia) {
+                results.starDistancia.count++;
+                const sortedStars = [...stars].sort((a,b)=>a-b);
+                let minStarDist = 99;
+                for (let j = 0; j < sortedStars.length - 1; j++) {
+                    const d = sortedStars[j+1] - sortedStars[j];
+                    if (d < minStarDist) minStarDist = d;
+                }
+                if (minStarDist >= this.filters.starDistancia.min && minStarDist <= this.filters.starDistancia.max) results.starDistancia.passed++;
+            }
+        }
+    }
+
+    for (const key in results) {
+      if (results[key].count > 0) {
+        results[key].percent = Math.round((results[key].passed / results[key].count) * 100);
+      } else {
+        results[key].percent = 100;
+      }
+    }
+
+    return { results, actualSampleSize };
+  }
+
+  displayFilterFailureDiagnostics() {
+    const ticketDiv = document.getElementById('ticket');
+    if (!ticketDiv) return;
+
+    this.updateFilterStateFromUI();
+    const { results, actualSampleSize } = this.runFilterAudit(1000);
+
+    // Filter results so we only show active filters that actually restrict combinations (percent < 100)
+    const activeFilters = Object.keys(results)
+      .map(key => ({ key, ...results[key] }))
+      .filter(item => item.count > 0 && item.percent < 100);
+
+    ticketDiv.classList.add('show', 'conflict');
+    
+    if (activeFilters.length === 0) {
+      ticketDiv.innerHTML = `
+        <div class="ticket-header" style="border-bottom: 2px solid #fee2e2; margin-bottom: 12px; padding-bottom: 10px;">
+          <h4 style="color: #dc2626; display: flex; align-items: center; gap: 8px; margin: 0; font-weight: bold;">⚠️ Generación Incompleta</h4>
+          <span style="font-size: 0.8rem; color: #7f1d1d; font-weight: bold;">Filtros Extremos</span>
+        </div>
+        <div style="padding: 10px 5px; color: #7f1d1d; font-size: 0.9rem; line-height: 1.5;">
+          <p style="margin: 0 0 10px 0; font-weight: bold;">No se han podido encontrar combinaciones válidas en 50,000 intentos.</p>
+          <p style="margin: 0 0 15px 0; color: #991b1b; font-size: 0.85rem;">El universo seleccionado en el volante interactivo es demasiado bajo o hay un conflicto estricto en los filtros avanzados configurados.</p>
+          <button id="resetDiagFiltersBtn" style="width: 100%; padding: 12px; background: #dc2626; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; font-size: 0.9rem;">
+            🔄 Restablecer Filtros de ${this.currentGame.name}
+          </button>
+        </div>
+      `;
+    } else {
+      activeFilters.sort((a, b) => a.percent - b.percent);
+
+      let filtersHtml = '';
+      activeFilters.forEach((item, index) => {
+        const isCritical = item.percent < 8;
+        const isBottleneck = index === 0 && item.percent < 30;
+        const barColor = isCritical ? '#ef4444' : isBottleneck ? '#f97316' : '#10b981';
+        const labelText = isCritical ? 'Bloqueo Crítico 🚨' : isBottleneck ? 'Filtro Restrictivo ⚠️' : 'Filtro Activo';
+        
+        let recommendation = '';
+        if (item.key === 'sum') {
+          recommendation = '💡 Amplía el Rango de Suma en el panel de control avanzado.';
+        } else if (item.key === 'terminacionesDistintas') {
+          recommendation = '💡 Permite mayor variedad de terminaciones distintas.';
+        } else if (item.key === 'parImpar') {
+          recommendation = '💡 Activa más combinaciones de proporción Par/Impar.';
+        } else if (item.key === 'bajosAltos') {
+          recommendation = '💡 Activa más alternativas para proporción Bajos/Altos.';
+        } else if (item.key === 'primos') {
+          recommendation = '💡 Amplía los límites mínimo o máximo de cantidad de primos.';
+        } else if (item.key === 'distancia') {
+          recommendation = '💡 Relaja la distancia mínima de espaciado o aumenta la máxima.';
+        } else if (item.key === 'sumaDigitos') {
+          recommendation = '💡 Amplía los márgenes de suma de dígitos individuales.';
+        } else if (item.key === 'consecutivos') {
+          recommendation = '💡 Selecciona más patrones de bloques consecutivos permitidos.';
+        } else if (item.key === 'agrupDecenas') {
+          recommendation = '💡 Permite más patrones de agrupación por decenas.';
+        } else if (item.key === 'desviacion') {
+          recommendation = '💡 Amplía el rango de desviación estándar permitida.';
+        } else if (item.key === 'entropyTerminaciones') {
+          recommendation = '💡 Amplía los límites de Entropía de Terminaciones para mayor variedad de finales.';
+        } else if (item.key === 'entropyIntervalos') {
+          recommendation = '💡 Ajusta la Entropía de Intervalos para permitir un espaciado de números más flexible.';
+        } else if (item.key === 'geometric') {
+          recommendation = '💡 Desmarca patrones visuales excluidos en el panel geométrico.';
+        } else if (item.key?.startsWith('star')) {
+          recommendation = '💡 Flexibiliza filtros específicos aplicados para las estrellas.';
+        }
+
+        filtersHtml += `
+          <div style="background: ${isCritical ? '#fff5f5' : '#fffaf5'}; border: 1px solid ${isCritical ? '#fecaca' : '#fed7aa'}; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
+              <span style="font-weight: bold; color: #1e293b;">${item.name}</span>
+              <span style="font-weight: 900; color: ${barColor}">${item.percent}% aprueban</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+              <div style="width: ${item.percent}%; height: 100%; background: ${barColor}; border-radius: 3px;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b;">
+              <span>${item.passed} de ${item.count} apuestas de prueba pasaron</span>
+              <span style="font-weight: bold; color: ${barColor}">${labelText}</span>
+            </div>
+            ${recommendation ? `<div style="font-size: 0.75rem; color: #991b1b; margin-top: 4px; padding: 5px 8px; background: #fee2e2; border-radius: 4px; border-left: 2px solid ${barColor}; font-weight: 500;">${recommendation}</div>` : ''}
+          </div>
+        `;
+      });
+
+      ticketDiv.innerHTML = `
+        <div class="ticket-header" style="border-bottom: 2px solid #fee2e2; margin-bottom: 12px; padding-bottom: 10px;">
+          <h4 style="color: #dc2626; display: flex; align-items: center; gap: 8px; margin: 0; font-weight: bold;">⚠️ Conflicto de Filtros Detectado</h4>
+          <span style="font-size: 0.8rem; color: #7f1d1d; font-weight: bold;">Auditoría de Embudo</span>
+        </div>
+        <div style="padding: 0 5px; display: flex; flex-direction: column; gap: 15px;">
+          <div style="color: #7f1d1d; font-size: 0.85rem; line-height: 1.5; background: #fee2e2; padding: 10px; border-radius: 6px; border-left: 4px solid #ef4444;">
+            <strong>⚠️ Bloqueo matemático detectado:</strong> No se han podido encontrar apuestas viables en 50,000 intentos.
+            Nuestro auditor ha analizado tus filtros mediante simulaciones de prueba en tiempo real para encontrar el embudo:
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${filtersHtml}
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+            <button id="resetDiagFiltersBtn" style="width: 100%; padding: 12px; background: #dc2626; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.1s, background 0.2s; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.23);">
+              🔄 Restablecer Filtros de ${this.currentGame.name}
+            </button>
+            <p style="font-size: 0.75rem; color: #64748b; text-align: center; margin: 0;">
+              Esto cargará los rangos recomendados diseñados por el motor de probabilidades para que la generación funcione de inmediato.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    const resetBtn = document.getElementById('resetDiagFiltersBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        try {
+          this.resetFiltersToDefault();
+          this.showToast(`✅ Filtros de ${this.currentGame.name} restablecidos a valores recomendados.`, 'success');
+          ticketDiv.classList.remove('show', 'conflict');
+        } catch (err: any) {
+          console.error("Fallo al resetear filtros:", err);
+        }
+      });
+    }
+
+    ticketDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  resetFiltersToDefault() {
+    const defaultFilters = this.getDefaultFiltersForGame(this.currentGame.id);
+    this.filters = JSON.parse(JSON.stringify(defaultFilters));
+    this.gameFilters[this.currentGame.id] = this.filters;
+    this.saveState();
+    this.updateUIFromFilterState();
+  }
+
+  updateFilterBadgesFromAudit() {
+    this.updateFilterStateFromUI();
+    const { results } = this.runFilterAudit(500);
+
+    const filterSelectors: { [key: string]: string } = {
+      terminaciones: '#terminacionesOptions',
+      sum: '#sumMin',
+      terminacionesDistintas: '#terminacionesDistintasOptions',
+      parImpar: '#parImparOptions',
+      bajosAltos: '#bajosAltosOptions',
+      primos: '#primosMin',
+      distancia: '#distanciaMin',
+      sumaDigitos: '#sumaDigitosMin',
+      consecutivos: '#consecutivosOptions',
+      agrupDecenas: '#agrupDecenasOptions',
+      desviacion: '#desviacionMin',
+      entropyTerminaciones: '#entropyTerminacionesMin',
+      entropyIntervalos: '#entropyIntervalosMin',
+      geometric: '#geometricOptions',
+      starSum: '#starSumMin',
+      starParImpar: '#starParImparOptions',
+      starBajosAltos: '#starBajosAltosOptions',
+      starSumaDigitos: '#starSumaDigitosMin',
+      starPrimos: '#starPrimosMin',
+      starConsecutivos: '#starConsecutivosOptions',
+      starDistancia: '#starDistanciaMin'
+    };
+
+    // Remove any existing custom activity badges inside ALL .filter-title elements
+    document.querySelectorAll('.filter-title .filter-activity-badge').forEach(el => el.remove());
+
+    Object.keys(results).forEach(key => {
+      const item = results[key];
+      // Only show badge if the filter was actually evaluated (count > 0)
+      // and it restricted combinations (percent < 100)
+      if (item.count > 0 && item.percent < 100) {
+        const selector = filterSelectors[key];
+        if (!selector) return;
+
+        const targetEl = document.querySelector(selector);
+        if (!targetEl) return;
+
+        const filterGroup = targetEl.closest('.filter-group');
+        if (!filterGroup) return;
+
+        const titleEl = filterGroup.querySelector('.filter-title');
+        if (!titleEl) return;
+
+        // Create elegant styled badge
+        const badge = document.createElement('span');
+        badge.className = 'filter-activity-badge';
+        badge.style.cssText = 'font-size: 0.72rem; margin-left: 8px; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.02em; animation: pulse 2s infinite ease-in-out; border-width: 1px; border-style: solid;';
+
+        const isCritical = item.percent < 15;
+        const isWarning = item.percent < 50;
+
+        if (isCritical) {
+          badge.style.color = '#ef4444';
+          badge.style.background = '#fee2e2';
+          badge.style.borderColor = '#fca5a5';
+          badge.innerHTML = `🚨 Filtra ${Math.round(100 - item.percent)}%`;
+        } else if (isWarning) {
+          badge.style.color = '#d97706';
+          badge.style.background = '#fef3c7';
+          badge.style.borderColor = '#fcd34d';
+          badge.innerHTML = `⚠️ Filtra ${Math.round(100 - item.percent)}%`;
+        } else {
+          badge.style.color = '#3b82f6';
+          badge.style.background = '#eff6ff';
+          badge.style.borderColor = '#93c5fd';
+          badge.innerHTML = `📉 Filtra ${Math.round(100 - item.percent)}%`;
+        }
+
+        titleEl.appendChild(badge);
+      }
+    });
+  }
+
+  normalizeFilters(filters: any, gameId: string): Filters {
+      const defaults = this.getDefaultFiltersForGame(gameId);
+      if (!filters) return defaults;
+      if (!filters.entropyTerminaciones) {
+          filters.entropyTerminaciones = defaults.entropyTerminaciones;
+      }
+      if (!filters.entropyIntervalos) {
+          filters.entropyIntervalos = defaults.entropyIntervalos;
+      }
+      return filters;
   }
 
   getDefaultFiltersForGame(gameId: string): Filters {
@@ -302,7 +834,8 @@ class DataLotto49Advanced {
           agrupDecenas: [],
           sumaDigitos: { min: Math.floor(maxNumbers * 4.5), max: Math.floor(maxNumbers * 7.5) },
           desviacion: { min: 10.0, max: 20.0 },
-          entropy: { min: 2.0, max: 2.6 },
+          entropyTerminaciones: { min: 1.000, max: Number(Math.log2(maxNumbers).toFixed(3)) },
+          entropyIntervalos: { min: 1.000, max: Number(Math.log2(maxNumbers - 1).toFixed(3)) },
           geometric: { exclude: [], favor: [] },
           starSum: { min: 3, max: starRange * 1.5 },
           starParImpar: [],
@@ -427,6 +960,178 @@ class DataLotto49Advanced {
       this.showToast('Filtro eliminado.', 'info');
   }
 
+  async applyAiFilters() {
+      if (!this.dataLoaded || this.historicalData.length === 0) {
+          this.showToast('Primero carga la base de datos de un juego.', 'warning');
+          return;
+      }
+
+      this.showToast('🤖 Gemini está analizando el historial para generar filtros óptimos...', 'info');
+
+      // Obtener los 25 sorteos más recientes
+      const recentDraws = this.historicalData.slice(-25).map(d => ({
+          numbers: d.numbers,
+          stars: d.stars,
+          date: d.date instanceof Date ? d.date.toLocaleDateString() : String(d.date)
+      })).reverse(); // El más reciente primero
+
+      const gamePayload = {
+          id: this.currentGame.id,
+          name: this.currentGame.name,
+          numberRange: this.currentGame.numberRange,
+          maxNumbers: this.currentGame.maxNumbers,
+          starRange: this.currentGame.starRange,
+          maxStars: this.currentGame.maxStars
+      };
+
+      const statsPayload = {
+          hotNumbers: Array.from(this.hotNumbers),
+          coldNumbers: Array.from(this.coldNumbers),
+          absentNumbers: Array.from(this.absentNumbers),
+          hotStars: Array.from(this.hotStars),
+          coldStars: Array.from(this.coldStars),
+          absentStars: Array.from(this.absentStars)
+      };
+
+      try {
+          const response = await fetch('/api/ai-filters', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                  game: gamePayload,
+                  recentDraws: recentDraws,
+                  stats: statsPayload
+              })
+          });
+
+          if (!response.ok) {
+              const errData = await response.json().catch(() => ({}));
+              throw new Error(errData.error || `HTTP error ${response.status}`);
+          }
+
+          const recommended = await response.json();
+
+          // 1. Limpiar exclusiones manuales actuales
+          this.excludedNumbers.clear();
+          this.excludedStars.clear();
+
+          // 2. Cargar exclusiones recomendadas por la IA (Garantizando rangos válidos)
+          if (Array.isArray(recommended.excludedNumbers)) {
+              recommended.excludedNumbers.forEach((n: number) => {
+                  if (n >= 1 && n <= this.currentGame.numberRange) {
+                      this.excludedNumbers.add(n);
+                  }
+              });
+          }
+
+          if (this.currentGame.maxStars > 0 && Array.isArray(recommended.excludedStars)) {
+              recommended.excludedStars.forEach((n: number) => {
+                  if (n >= 1 && n <= this.currentGame.starRange) {
+                      this.excludedStars.add(n);
+                  }
+              });
+          }
+
+          // 3. Cargar los filtros estructurados recomendados por la IA en memoria
+          if (Array.isArray(recommended.terminaciones)) {
+              this.filters.terminaciones = recommended.terminaciones.filter((n: number) => n >= 0 && n <= 9);
+          }
+          if (Array.isArray(recommended.terminacionesDistintas)) {
+              this.filters.terminacionesDistintas = recommended.terminacionesDistintas;
+          }
+
+          if (recommended.sum && typeof recommended.sum.min === 'number') {
+              this.filters.sum = { min: recommended.sum.min, max: recommended.sum.max };
+          }
+          if (Array.isArray(recommended.parImpar)) {
+              this.filters.parImpar = recommended.parImpar;
+          }
+          if (Array.isArray(recommended.bajosAltos)) {
+              this.filters.bajosAltos = recommended.bajosAltos;
+          }
+          if (recommended.primos && typeof recommended.primos.min === 'number') {
+              this.filters.primos = { min: recommended.primos.min, max: recommended.primos.max };
+          }
+          if (Array.isArray(recommended.consecutivos)) {
+              this.filters.consecutivos = recommended.consecutivos;
+          }
+          if (recommended.distancia && typeof recommended.distancia.min === 'number') {
+              this.filters.distancia = { min: recommended.distancia.min, max: recommended.distancia.max };
+          }
+          if (Array.isArray(recommended.agrupDecenas)) {
+              this.filters.agrupDecenas = recommended.agrupDecenas;
+          }
+          if (recommended.sumaDigitos && typeof recommended.sumaDigitos.min === 'number') {
+              this.filters.sumaDigitos = { min: recommended.sumaDigitos.min, max: recommended.sumaDigitos.max };
+          }
+          if (recommended.desviacion && typeof recommended.desviacion.min === 'number') {
+              this.filters.desviacion = { min: recommended.desviacion.min, max: recommended.desviacion.max };
+          }
+          if (recommended.entropyTerminaciones && typeof recommended.entropyTerminaciones.min === 'number') {
+              this.filters.entropyTerminaciones = { min: recommended.entropyTerminaciones.min, max: recommended.entropyTerminaciones.max };
+          }
+          if (recommended.entropyIntervalos && typeof recommended.entropyIntervalos.min === 'number') {
+              this.filters.entropyIntervalos = { min: recommended.entropyIntervalos.min, max: recommended.entropyIntervalos.max };
+          }
+
+          // Filtros de estrellas si corresponden
+          if (this.currentGame.maxStars > 0) {
+              if (recommended.starSum && typeof recommended.starSum.min === 'number') {
+                  this.filters.starSum = { min: recommended.starSum.min, max: recommended.starSum.max };
+              }
+              if (Array.isArray(recommended.starParImpar)) {
+                  this.filters.starParImpar = recommended.starParImpar;
+              }
+              if (Array.isArray(recommended.starBajosAltos)) {
+                  this.filters.starBajosAltos = recommended.starBajosAltos;
+              }
+              if (recommended.starSumaDigitos && typeof recommended.starSumaDigitos.min === 'number') {
+                  this.filters.starSumaDigitos = { min: recommended.starSumaDigitos.min, max: recommended.starSumaDigitos.max };
+              }
+              if (recommended.starPrimos && typeof recommended.starPrimos.min === 'number') {
+                  this.filters.starPrimos = { min: recommended.starPrimos.min, max: recommended.starPrimos.max };
+              }
+              if (Array.isArray(recommended.starConsecutivos)) {
+                  this.filters.starConsecutivos = recommended.starConsecutivos;
+              }
+              if (recommended.starDistancia && typeof recommended.starDistancia.min === 'number') {
+                  this.filters.starDistancia = { min: recommended.starDistancia.min, max: recommended.starDistancia.max };
+              }
+          }
+
+          if (typeof recommended.useMarkov === 'boolean') {
+              this.filters.useMarkov = recommended.useMarkov;
+          }
+          if (typeof recommended.useNash === 'boolean') {
+              this.filters.useNash = recommended.useNash;
+          }
+          if (typeof recommended.useRegression === 'boolean') {
+              this.filters.useRegression = recommended.useRegression;
+          }
+
+          // 4. Sincronizar el estado en el DOM de filtros y grids del tablero
+          this.updateUIFromFilterState();
+          this.updateGridNumberStates();
+
+          // 5. Mostrar razonamiento de forma premium en el panel
+          const block = document.getElementById('aiReasoningBlock');
+          const text = document.getElementById('aiReasoningText');
+          if (block && text && recommended.reasoning) {
+              text.textContent = recommended.reasoning;
+              block.style.display = 'block';
+          }
+
+          this.saveState();
+          this.showToast(`✨ Filtros optimizados por IA aplicados con éxito.`, 'success');
+
+      } catch (error: any) {
+          console.error("Error aplicando filtros de IA:", error);
+          this.showToast(`Error de IA: ${error.message || 'No se pudo conectar con Gemini'}`, 'error');
+      }
+  }
+
   saveFilterPreset() {
       // Keep for backward compatibility or remove if not used
       this.openSaveFilterModal();
@@ -438,14 +1143,37 @@ class DataLotto49Advanced {
           if (savedStateJSON) {
               const savedState = JSON.parse(savedStateJSON);
               this.savedTickets = savedState.savedTickets || [];
+              // Migrate any old saved tickets gameId from 'lotto649' or missing to 'bonoloto'
+              this.savedTickets.forEach((t: any) => {
+                  if (!t.gameId || t.gameId === 'lotto649') {
+                      t.gameId = 'bonoloto';
+                  }
+              });
               
               if (savedState.gameFilters) {
                   this.gameFilters = savedState.gameFilters;
-                  this.filters = this.gameFilters[this.currentGame.id] || this.getDefaultFiltersForGame(this.currentGame.id);
+                  // Migrate lotto649 saved filters to bonoloto / primitiva
+                  if (this.gameFilters['lotto649']) {
+                      if (!this.gameFilters['bonoloto']) {
+                          this.gameFilters['bonoloto'] = JSON.parse(JSON.stringify(this.gameFilters['lotto649']));
+                      }
+                      if (!this.gameFilters['primitiva']) {
+                          this.gameFilters['primitiva'] = JSON.parse(JSON.stringify(this.gameFilters['lotto649']));
+                      }
+                      delete this.gameFilters['lotto649'];
+                  }
+                  this.filters = this.normalizeFilters(this.gameFilters[this.currentGame.id], this.currentGame.id);
               } else if (savedState.filters) {
                   // Migration from old single filter structure
-                  this.filters = savedState.filters;
+                  this.filters = this.normalizeFilters(savedState.filters, this.currentGame.id);
                   this.gameFilters[this.currentGame.id] = this.filters;
+              }
+
+              // Apply normalizeFilters to all gameFilters so switching lists are normalized too
+              if (this.gameFilters) {
+                  Object.keys(this.gameFilters).forEach(gid => {
+                      this.gameFilters[gid] = this.normalizeFilters(this.gameFilters[gid], gid);
+                  });
               }
 
               if (!this.filters.ai) { // Ensure ai config exists for older states
@@ -466,7 +1194,7 @@ class DataLotto49Advanced {
           // Load filter preset if exists (overriding last session filters if necessary, acting as user default)
           const savedFilters = localStorage.getItem(DataLotto49Advanced.FILTER_PRESET_KEY);
           if (savedFilters) {
-              this.filters = { ...this.filters, ...JSON.parse(savedFilters) };
+              this.filters = this.normalizeFilters({ ...this.filters, ...JSON.parse(savedFilters) }, this.currentGame.id);
               console.log("Filtros predeterminados cargados.");
           }
 
@@ -477,6 +1205,7 @@ class DataLotto49Advanced {
   }
 
   updateUIFromFilterState() {
+    document.querySelectorAll('.filter-title .filter-activity-badge').forEach(el => el.remove());
     // Inputs de rango
     const setVal = (id: string, value: number | string) => {
       const el = document.getElementById(id) as HTMLInputElement;
@@ -500,8 +1229,10 @@ class DataLotto49Advanced {
     setVal('sumaDigitosMax', this.filters.sumaDigitos.max);
     setVal('desviacionMin', this.filters.desviacion.min);
     setVal('desviacionMax', this.filters.desviacion.max);
-    setVal('entropyMin', this.filters.entropy.min);
-    setVal('entropyMax', this.filters.entropy.max);
+    setVal('entropyTerminacionesMin', this.filters.entropyTerminaciones.min);
+    setVal('entropyTerminacionesMax', this.filters.entropyTerminaciones.max);
+    setVal('entropyIntervalosMin', this.filters.entropyIntervalos.min);
+    setVal('entropyIntervalosMax', this.filters.entropyIntervalos.max);
     
     // Star ranges
     setVal('starSumMin', this.filters.starSum.min);
@@ -683,7 +1414,15 @@ class DataLotto49Advanced {
     if (!listContainer) return;
 
     let GAMES_LIST = [];
-    if (this.currentGame.id === 'euromillones') {
+    if (this.currentGame.id === 'bonoloto') {
+        GAMES_LIST = [
+            { id: 'bonoloto', name: 'Bonoloto España', flag: '🇪🇸' }
+        ];
+    } else if (this.currentGame.id === 'primitiva') {
+        GAMES_LIST = [
+            { id: 'primitiva', name: 'Primitiva España', flag: '🇪🇸' }
+        ];
+    } else if (this.currentGame.id === 'euromillones') {
         GAMES_LIST = [
             { id: 'euromillones', name: 'Euromillones', flag: '🇪🇺' }
         ];
@@ -695,20 +1434,15 @@ class DataLotto49Advanced {
         GAMES_LIST = [
             { id: 'gordo', name: 'El Gordo', flag: '🏆' }
         ];
-    } else {
-        GAMES_LIST = [
-            { id: 'bonoloto', name: 'Bonoloto España', flag: '🇪🇸' },
-            { id: 'primitiva', name: 'Primitiva España', flag: '🇪🇸' }
-        ];
     }
 
-    // Sort: Favorites first, then alphabetical
+    // Sort: Favorites first, then keep requested order
     const sortedGames = [...GAMES_LIST].sort((a, b) => {
         const aFav = this.favoriteGames.has(a.id);
         const bFav = this.favoriteGames.has(b.id);
         if (aFav && !bFav) return -1;
         if (!aFav && bFav) return 1;
-        return a.name.localeCompare(b.name);
+        return GAMES_LIST.findIndex(x => x.id === a.id) - GAMES_LIST.findIndex(x => x.id === b.id);
     });
 
     listContainer.innerHTML = '';
@@ -722,7 +1456,7 @@ class DataLotto49Advanced {
         btn.className = 'game-select-btn';
         btn.style.cssText = 'flex: 1; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: white; cursor: pointer; text-align: left; font-size: 1rem; display: flex; align-items: center; gap: 10px; transition: all 0.2s;';
         btn.innerHTML = `<span>${game.flag}</span> <strong>${game.name}</strong>`;
-        btn.onclick = () => this.loadSpecificGame(game.id as 'bonoloto' | 'primitiva' | 'euromillones');
+        btn.onclick = () => this.loadSpecificGame(game.id as any);
 
         const favBtn = document.createElement('button');
         favBtn.className = `game-fav-btn ${isFav ? 'active' : ''}`;
@@ -752,9 +1486,9 @@ class DataLotto49Advanced {
     const GAMES_LIST = [
         { id: 'bonoloto', name: 'Bonoloto España', flag: '🇪🇸' },
         { id: 'primitiva', name: 'Primitiva España', flag: '🇪🇸' },
+        { id: 'gordo', name: 'El Gordo', flag: '🏆' },
         { id: 'euromillones', name: 'Euromillones', flag: '🇪🇺' },
-        { id: 'eurodreams', name: 'EuroDreams', flag: '🌙' },
-        { id: 'gordo', name: 'El Gordo', flag: '🏆' }
+        { id: 'eurodreams', name: 'EuroDreams', flag: '🌙' }
     ];
 
     const sortedGames = [...GAMES_LIST].sort((a, b) => {
@@ -762,7 +1496,7 @@ class DataLotto49Advanced {
         const bFav = this.favoriteGames.has(b.id);
         if (aFav && !bFav) return -1;
         if (!aFav && bFav) return 1;
-        return a.name.localeCompare(b.name);
+        return GAMES_LIST.findIndex(x => x.id === a.id) - GAMES_LIST.findIndex(x => x.id === b.id);
     });
 
     listContainer.innerHTML = '';
@@ -799,13 +1533,63 @@ class DataLotto49Advanced {
     });
   }
 
+  generateSyntheticCSV(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo'): string {
+    const game = GAMES[gameKey];
+    const maxNumbers = game.maxNumbers;
+    const maxStars = game.maxStars || 0;
+    const numberRange = game.numberRange;
+    const starRange = game.starRange || 0;
+    
+    let header = 'Fecha,N1,N2,N3,N4,N5';
+    if (maxNumbers === 6) header += ',N6';
+    if (maxStars === 1) header += ',Estrella 1';
+    if (maxStars === 2) header += ',Estrella 1,Estrella 2';
+    
+    let csv = header + '\n';
+    
+    // Generar 100 sorteos históricos realistas (espaciados semanalmente)
+    const now = new Date();
+    for (let i = 0; i < 100; i++) {
+      const date = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const dateStr = `${day}/${month}/${year}`;
+      
+      // Combinación de números aleatoria sin repetición
+      const nums: number[] = [];
+      const numPool = Array.from({ length: numberRange }, (_, idx) => idx + 1);
+      for (let n = 0; n < maxNumbers; n++) {
+        const idx = Math.floor(Math.random() * numPool.length);
+        nums.push(numPool.splice(idx, 1)[0]);
+      }
+      nums.sort((a, b) => a - b);
+      
+      // Combinación de estrellas aleatoria sin repetición
+      const stars: number[] = [];
+      const starPool = Array.from({ length: starRange }, (_, idx) => idx + 1);
+      for (let s = 0; s < maxStars; s++) {
+        const idx = Math.floor(Math.random() * starPool.length);
+        stars.push(starPool.splice(idx, 1)[0]);
+      }
+      stars.sort((a, b) => a - b);
+      
+      let row = dateStr + ',' + nums.join(',');
+      if (stars.length > 0) {
+        row += ',' + stars.join(',');
+      }
+      csv += row + '\n';
+    }
+    return csv;
+  }
+
   async loadSpecificGame(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo') {
     const GAMES_CONFIG: { [key: string]: string } = {
         bonoloto: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQoIJeLcb9AcK8E6o_aw41gseUzNHl3518Etam-O60x-I9m8Ta6zMcg5TwZCznXzmWzxU18i-bYX81D/pub?output=csv",
         primitiva: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmhAHqGSrFFNqbugQz_CK9X-pT2diofnrYy_Wus7_MyPlDjJVk-8n1MGIat9phYSzeY0vz7kKjw-tC/pub?output=csv",
         euromillones: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9LdJPVydRU1ohhiCuUeVb0nFTnFdZG_4JJhD8K7dJzrhHVOLUNB1SDF4TkbkqXSqrF_LGbhYQGgl6/pub?output=csv",
-        eurodreams: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS6n-y_8F8Wz_P_2_N_K_T_Y_X_Z_L_M_N_Q_R_S_T_U_V_W_X_Y_Z/pub?output=csv", // Placeholder
-        gordo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vR_6_G_H_I_J_K_L_M_N_O_P_Q_R_S_T_U_V_W_X_Y_Z/pub?output=csv" // Placeholder
+        eurodreams: "https://docs.google.com/spreadsheets/d/e/2PACX-1vR9UhEkG1_cHAMDvBsmhkzqjpismGFGhouomp9PV3QN4YfIAsdvQF4A5d1iOddnjbz8CKkN3xFC-jjf/pub?output=csv",
+        gordo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS_2jIvMo4_HmGowBdT0oRAB0fQOCW28JDtgxc_Rm_u9YBUTx1_D7pQ3-NuMh7KvuCJNpoP7bzgAzPc/pub?output=csv"
     };
 
     const url = GAMES_CONFIG[gameKey];
@@ -815,9 +1599,28 @@ class DataLotto49Advanced {
     try {
       const gameName = GAMES[gameKey]?.name || gameKey;
       this.showLoading(`Cargando base de datos de ${gameName}...`);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-      const content = await response.text();
+      let content = '';
+      let isOffline = false;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+        content = await response.text();
+        localStorage.setItem(`datalotto_csv_cache_${gameKey}`, content);
+      } catch (fetchError: any) {
+        console.warn(`Error de descarga para ${gameKey}, buscando caché...`, fetchError);
+        const cached = localStorage.getItem(`datalotto_csv_cache_${gameKey}`);
+        if (cached) {
+          content = cached;
+          isOffline = true;
+          this.showToast(`Modo Sin Conexión: Usando base de datos local guardada en caché.`, 'warning');
+        } else {
+          content = this.generateSyntheticCSV(gameKey);
+          isOffline = true;
+          this.showToast(`Sin caché ni red: Generando base histórica secuencial simulada.`, 'warning');
+        }
+      }
+
       const data = this.parseCSVData(content);
       
       this.historicalData = data;
@@ -828,10 +1631,15 @@ class DataLotto49Advanced {
       this.updateGridNumberStates();
       this.updateBigDataPanel();
       this.saveState();
-      this.showToast(`✅ Base de Datos de ${gameKey.toUpperCase()} cargada: ${data.length} sorteos`, 'success');
+      
+      const successMsg = isOffline 
+          ? `⚠️ Base de Datos de ${gameKey.toUpperCase()} cargada sin conexión: ${data.length} sorteos`
+          : `✅ Base de Datos de ${gameKey.toUpperCase()} cargada: ${data.length} sorteos`;
+          
+      this.showToast(successMsg, isOffline ? 'warning' : 'success');
       this.autoValidateSavedTickets();
     } catch (error: any) {
-      this.showToast(`Error al cargar base de datos: ${error.message}`, 'error');
+      this.showToast(`Error de integridad de base de datos: ${error.message}`, 'error');
     } finally {
         this.hideLoading();
         this.hideFilterSpinner();
@@ -1496,7 +2304,7 @@ class DataLotto49Advanced {
     this.currentGame = GAMES[gameId];
     
     // Load filters for the new game
-    this.filters = this.gameFilters[gameId] || this.getDefaultFiltersForGame(gameId);
+    this.filters = this.normalizeFilters(this.gameFilters[gameId], gameId);
 
     // Clear ALL states when switching games as they are game-specific
     this.clearSelections(true); 
@@ -1513,7 +2321,11 @@ class DataLotto49Advanced {
     // Update Header Title
     const headerTitle = document.querySelector('.header h1');
     if (headerTitle) {
-        if (gameId === 'euromillones') {
+        if (gameId === 'bonoloto') {
+            headerTitle.textContent = 'Bonoloto 6/49';
+        } else if (gameId === 'primitiva') {
+            headerTitle.textContent = 'La Primitiva 6/49';
+        } else if (gameId === 'euromillones') {
             headerTitle.textContent = 'Euromillones 5/50 ⭐2/12';
         } else if (gameId === 'eurodreams') {
             headerTitle.textContent = 'EuroDreams 6/40 🌙1/5';
@@ -1818,6 +2630,10 @@ class DataLotto49Advanced {
   }
 
   bindEvents() {
+    document.getElementById('savedTicketsGameFilter')?.addEventListener('change', () => {
+        this.updateSavedTickets();
+    });
+
     document.getElementById('numbersGrid')?.addEventListener('click', e => {
       const target = e.target as HTMLElement;
       if (target.classList.contains('number-ball')) this.handleNumberClick(target);
@@ -1955,6 +2771,7 @@ class DataLotto49Advanced {
     document.getElementById('closeAiPredictionBtn')?.addEventListener('click', () => this.toggleModal('aiPredictionModal', false));
     document.getElementById('applyAiNumbersBtn')?.addEventListener('click', () => this.applyAiNumbers());
     document.getElementById('saveFiltersBtn')?.addEventListener('click', () => this.openSaveFilterModal());
+    document.getElementById('aiFiltersBtn')?.addEventListener('click', () => this.applyAiFilters());
     document.getElementById('closeSaveFilterBtn')?.addEventListener('click', () => this.toggleModal('saveFilterModal', false));
     document.getElementById('confirmSaveFilterBtn')?.addEventListener('click', () => this.confirmSaveFilter());
     document.getElementById('closeLoadFilterBtn')?.addEventListener('click', () => this.toggleModal('loadFilterModal', false));
@@ -2017,7 +2834,8 @@ class DataLotto49Advanced {
       this.filters.agrupDecenas = getActiveChips('#agrupDecenasOptions .filter-chip.active');
       this.filters.sumaDigitos = { min: getVal('sumaDigitosMin'), max: getVal('sumaDigitosMax') };
       this.filters.desviacion = { min: getVal('desviacionMin', true), max: getVal('desviacionMax', true) };
-      this.filters.entropy = { min: getVal('entropyMin', true), max: getVal('entropyMax', true) };
+      this.filters.entropyTerminaciones = { min: getVal('entropyTerminacionesMin', true), max: getVal('entropyTerminacionesMax', true) };
+      this.filters.entropyIntervalos = { min: getVal('entropyIntervalosMin', true), max: getVal('entropyIntervalosMax', true) };
       
       // Star filters
       this.filters.starSum = { min: getVal('starSumMin'), max: getVal('starSumMax') };
@@ -2449,8 +3267,20 @@ class DataLotto49Advanced {
     try {
       if (strategy === 'simple') {
           this.showLoading('Buscando combinación...');
+          const loadingInfo = document.getElementById('loadingInfo');
           let found = false;
-          for (let i = 0; i < 50000; i++) {
+          const maxSimpleAttempts = 50000;
+          const chunkSize = 1500;
+          
+          for (let i = 0; i < maxSimpleAttempts; i++) {
+              if (i > 0 && i % chunkSize === 0) {
+                  if (loadingInfo) {
+                      loadingInfo.textContent = `Buscando... (${i} intentos probados)`;
+                  }
+                  // Yield execution to the browser event loop to avoid locking the UI thread
+                  await new Promise(resolve => setTimeout(resolve, 1));
+              }
+              
               const combo = this.generateRandomCombination(availableUniverse, maxNumbers);
               const stars = maxStars > 0 ? this.generateRandomCombination(availableStars, maxStars) : [];
               if (this.isValidCombination(combo, stars)) {
@@ -2517,14 +3347,27 @@ class DataLotto49Advanced {
         }
       } else {
          this.showToast('No se encontró ninguna combinación que cumpla todos los filtros. Prueba a flexibilizarlos.', 'warning');
+         this.displayFilterFailureDiagnostics();
       }
 
     } catch (error: any) {
         this.showToast(`Error: ${error.message}`, 'error');
+        if (error.message && error.message.includes('No se encontró ninguna combinación')) {
+            try {
+                this.displayFilterFailureDiagnostics();
+            } catch (diagErr) {
+                console.error("Fallo al mostrar el diagnóstico detallado:", diagErr);
+            }
+        }
     } finally {
         this.hideLoading();
         this.isGenerating = false;
         this.hideFilterSpinner();
+        try {
+            this.updateFilterBadgesFromAudit();
+        } catch (badgeErr) {
+            console.error("No se pudieron actualizar los visuales de filtros:", badgeErr);
+        }
     }
   }
 
@@ -2641,44 +3484,187 @@ class DataLotto49Advanced {
       
       if (combination.length !== maxNumbers) return false;
       if (maxStars > 0 && stars.length !== maxStars) return false;
-      
-      const stats = this.getCombinationStats(combination, stars);
-      if (Object.keys(stats).length === 0) return false;
 
-      // Nivel 1 - Terminaciones
-      const uniqueEndings = new Set(combination.map(n => n % 10)).size;
-      if (this.filters.terminacionesDistintas.length > 0 && !this.filters.terminacionesDistintas.includes(uniqueEndings)) return false;
-
-      // Nivel 2
-      if (stats.suma < this.filters.sum.min || stats.suma > this.filters.sum.max) return false;
-      if (this.filters.parImpar.length > 0 && !this.filters.parImpar.includes(stats.parImpar)) return false;
-      if (this.filters.bajosAltos.length > 0 && !this.filters.bajosAltos.includes(stats.bajosAltos)) return false;
-      if (stats.primos < this.filters.primos.min || stats.primos > this.filters.primos.max) return false;
-      if (this.filters.consecutivos.length > 0 && !this.filters.consecutivos.includes(stats.consecutivos)) return false;
-      
-      const sortedCombo = [...combination].sort((a,b) => a-b);
-      for (let i = 0; i < sortedCombo.length - 1; i++) {
-        const diff = sortedCombo[i+1] - sortedCombo[i];
-        if (diff < this.filters.distancia.min || diff > this.filters.distancia.max) return false;
+      // 1. SUM: extremely cheap to check
+      let sum = 0;
+      for (let i = 0; i < maxNumbers; i++) sum += combination[i];
+      if (this.filters.sum) {
+          if (sum < this.filters.sum.min || sum > this.filters.sum.max) return false;
       }
-      
-      if (this.filters.agrupDecenas.length > 0 && !this.filters.agrupDecenas.includes(stats.agrupDecenas)) return false;
-      if (stats.sumaDigitos < this.filters.sumaDigitos.min || stats.sumaDigitos > this.filters.sumaDigitos.max) return false;
-      
-      // Nivel 3 Exclusions
-      if (stats._desviacion < this.filters.desviacion.min || stats._desviacion > this.filters.desviacion.max) return false;
-      if (stats._entropia < this.filters.entropy.min || stats._entropia > this.filters.entropy.max) return false;
-      if (this.filters.geometric.exclude.length > 0 && this.hasGeometricPattern(combination, this.filters.geometric.exclude)) return false;
 
-      // Star filters
-      if (maxStars > 0 && stats.estrellas) {
-          if (stats.estrellas.suma < this.filters.starSum.min || stats.estrellas.suma > this.filters.starSum.max) return false;
-          if (this.filters.starParImpar.length > 0 && !this.filters.starParImpar.includes(stats.estrellas.parImpar)) return false;
-          if (this.filters.starBajosAltos.length > 0 && !this.filters.starBajosAltos.includes(stats.estrellas.bajosAltos)) return false;
-          if (stats.estrellas.sumaDigitos < this.filters.starSumaDigitos.min || stats.estrellas.sumaDigitos > this.filters.starSumaDigitos.max) return false;
-          if (stats.estrellas.primos < this.filters.starPrimos.min || stats.estrellas.primos > this.filters.starPrimos.max) return false;
-          if (this.filters.starConsecutivos.length > 0 && !this.filters.starConsecutivos.includes(stats.estrellas.consecutivos)) return false;
-          if (stats.estrellas.distancia < this.filters.starDistancia.min || stats.estrellas.distancia > this.filters.starDistancia.max) return false;
+      // 2. TERMINACIONES DISTINTAS: very cheap, uses set map
+      if (this.filters.terminacionesDistintas && this.filters.terminacionesDistintas.length > 0) {
+          const uniqueEndings = new Set(combination.map(n => n % 10)).size;
+          if (!this.filters.terminacionesDistintas.includes(uniqueEndings)) return false;
+      }
+
+      // 3. PAR IMPAR: very cheap, single-pass loop
+      if (this.filters.parImpar && this.filters.parImpar.length > 0) {
+          const evens = combination.filter(n => n % 2 === 0).length;
+          const parImparKey = `${evens}/${maxNumbers - evens}`;
+          if (!this.filters.parImpar.includes(parImparKey)) return false;
+      }
+
+      // 4. BAJOS ALTOS: very cheap, single-pass loop
+      if (this.filters.bajosAltos && this.filters.bajosAltos.length > 0) {
+          const midPoint = Math.floor(this.currentGame.numberRange / 2);
+          const lows = combination.filter(n => n <= midPoint).length;
+          const bajosAltosKey = `${lows}/${maxNumbers - lows}`;
+          if (!this.filters.bajosAltos.includes(bajosAltosKey)) return false;
+      }
+
+      // 5. PRIMOS: cheap set lookups
+      if (this.filters.primos) {
+          const primesCount = combination.filter(n => this.primes.has(n)).length;
+          if (primesCount < this.filters.primos.min || primesCount > this.filters.primos.max) return false;
+      }
+
+      // 6. DISTANCIA: cheap sequential checks
+      if (this.filters.distancia) {
+          const sortedCombo = [...combination].sort((a,b) => a-b);
+          for (let i = 0; i < sortedCombo.length - 1; i++) {
+              const diff = sortedCombo[i+1] - sortedCombo[i];
+              if (diff < this.filters.distancia.min || diff > this.filters.distancia.max) return false;
+          }
+      }
+
+      // 7. SUMA DÍGITOS: moderately cheap single-pass
+      if (this.filters.sumaDigitos) {
+          const digitSum = combination.reduce((sumVal, num) => sumVal + (num < 10 ? num : (num % 10 + Math.floor(num/10))), 0);
+          if (digitSum < this.filters.sumaDigitos.min || digitSum > this.filters.sumaDigitos.max) return false;
+      }
+
+      // 8. CONSECUTIVOS: sorting and simple match
+      if (this.filters.consecutivos && this.filters.consecutivos.length > 0) {
+          const sorted = [...combination].sort((a,b)=>a-b);
+          let consecutivePattern = '';
+          let count = 1;
+          for (let i = 1; i < sorted.length; i++) {
+              if (sorted[i] === sorted[i-1] + 1) {
+                  count++;
+              } else {
+                  consecutivePattern += count;
+                  count = 1;
+              }
+          }
+          consecutivePattern += count;
+          const consecPatternSorted = consecutivePattern.split('').sort((a,b)=>Number(b)-Number(a)).join('/');
+          if (!this.filters.consecutivos.includes(consecPatternSorted)) return false;
+      }
+
+      // 9. AGRUPAMIENTO DECENAS: decade groupings
+      if (this.filters.agrupDecenas && this.filters.agrupDecenas.length > 0) {
+          const tens: { [key: number]: number } = {};
+          combination.forEach(n => {
+              const ten = Math.floor((n-1)/10);
+              tens[ten] = (tens[ten] || 0) + 1;
+          });
+          const tensGroups = Object.values(tens).sort((a,b)=>b-a).join('/');
+          if (!this.filters.agrupDecenas.includes(tensGroups)) return false;
+      }
+
+      // 10. DESVIACIÓN ESTÁNDAR: computationally heavier
+      if (this.filters.desviacion) {
+          const mean = sum / maxNumbers;
+          const stdDev = Math.sqrt(combination.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / maxNumbers);
+          if (stdDev < this.filters.desviacion.min || stdDev > this.filters.desviacion.max) return false;
+      }
+
+      // 11. ENTROPÍA DE TERMINACIONES (SHANNON)
+      if (this.filters.entropyTerminaciones) {
+          const endingCounts: { [key: number]: number } = {};
+          combination.forEach(n => {
+              const ending = n % 10;
+              endingCounts[ending] = (endingCounts[ending] || 0) + 1;
+          });
+          const entropyTerm = -Object.values(endingCounts).reduce((s, countVal) => {
+              const p = countVal / maxNumbers;
+              return s + p * Math.log2(p);
+          }, 0);
+          if (entropyTerm < this.filters.entropyTerminaciones.min || entropyTerm > this.filters.entropyTerminaciones.max) return false;
+      }
+
+      // 11.5. ENTROPÍA DE INTERVALOS (SHANNON)
+      if (this.filters.entropyIntervalos) {
+          const sortedCombo = [...combination].sort((a,b) => a-b);
+          const intervalCounts: { [key: number]: number } = {};
+          for (let idx = 0; idx < sortedCombo.length - 1; idx++) {
+              const diff = sortedCombo[idx+1] - sortedCombo[idx];
+              intervalCounts[diff] = (intervalCounts[diff] || 0) + 1;
+          }
+          const numIntervals = maxNumbers - 1;
+          const entropyInt = -Object.values(intervalCounts).reduce((s, countVal) => {
+              const p = countVal / numIntervals;
+              return s + p * Math.log2(p);
+          }, 0);
+          if (entropyInt < this.filters.entropyIntervalos.min || entropyInt > this.filters.entropyIntervalos.max) return false;
+      }
+
+      // 12. GEOMÉTRICOS: grid loops
+      if (this.filters.geometric && this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
+          if (this.hasGeometricPattern(combination, this.filters.geometric.exclude)) return false;
+      }
+
+      // 13. ESTRELLAS: checked in similar lazy order
+      if (maxStars > 0 && stars.length === maxStars) {
+          const starSum = stars.reduce((a, b) => a + b, 0);
+          if (this.filters.starSum) {
+              if (starSum < this.filters.starSum.min || starSum > this.filters.starSum.max) return false;
+          }
+
+          if (this.filters.starParImpar && this.filters.starParImpar.length > 0) {
+              const starEvens = stars.filter(n => n % 2 === 0).length;
+              const starParImparKey = `${starEvens}/${maxStars-starEvens}`;
+              if (!this.filters.starParImpar.includes(starParImparKey)) return false;
+          }
+
+          if (this.filters.starBajosAltos && this.filters.starBajosAltos.length > 0) {
+              const starMid = Math.floor(this.currentGame.starRange / 2);
+              const starLows = stars.filter(n => n <= starMid).length;
+              const starBajosAltosKey = `${starLows}/${maxStars-starLows}`;
+              if (!this.filters.starBajosAltos.includes(starBajosAltosKey)) return false;
+          }
+
+          if (this.filters.starSumaDigitos) {
+              let starDigitSum = 0;
+              stars.forEach(s => {
+                  const sStr = s.toString();
+                  for (let i = 0; i < sStr.length; i++) starDigitSum += parseInt(sStr[i]);
+              });
+              if (starDigitSum < this.filters.starSumaDigitos.min || starDigitSum > this.filters.starSumaDigitos.max) return false;
+          }
+
+          if (this.filters.starPrimos) {
+              const starPrimosCount = stars.filter(n => this.primes.has(n)).length;
+              if (starPrimosCount < this.filters.starPrimos.min || starPrimosCount > this.filters.starPrimos.max) return false;
+          }
+
+          if (this.filters.starConsecutivos && this.filters.starConsecutivos.length > 0) {
+              const sortedStars = [...stars].sort((a,b)=>a-b);
+              let starConsecPattern = '';
+              let sCount = 1;
+              for (let i = 1; i < sortedStars.length; i++) {
+                  if (sortedStars[i] === sortedStars[i-1] + 1) {
+                      sCount++;
+                  } else {
+                      starConsecPattern += sCount;
+                      sCount = 1;
+                  }
+              }
+              starConsecPattern += sCount;
+              const starConsecPatternSorted = starConsecPattern.split('').sort((a,b)=>Number(b)-Number(a)).join('/');
+              if (!this.filters.starConsecutivos.includes(starConsecPatternSorted)) return false;
+          }
+
+          if (this.filters.starDistancia) {
+              const sortedStars = [...stars].sort((a,b)=>a-b);
+              let minStarDist = 99;
+              for (let i = 0; i < sortedStars.length - 1; i++) {
+                  const d = sortedStars[i+1] - sortedStars[i];
+                  if (d < minStarDist) minStarDist = d;
+              }
+              if (minStarDist < this.filters.starDistancia.min || minStarDist > this.filters.starDistancia.max) return false;
+          }
       }
 
       return true;
@@ -2781,11 +3767,27 @@ class DataLotto49Advanced {
     const mean = sum / maxNumbers;
     const stdDev = Math.sqrt(combination.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / maxNumbers);
 
-    const counts: { [key: number]: number } = {};
-    combination.forEach(n => { counts[n] = (counts[n] || 0) + 1; });
-    const entropy = -Object.values(counts).reduce((sum, count) => {
-        const p = count / maxNumbers;
-        return sum + p * Math.log2(p);
+    // Entropía de Terminaciones (Shannon)
+    const endingCounts: { [key: number]: number } = {};
+    combination.forEach(n => {
+        const ending = n % 10;
+        endingCounts[ending] = (endingCounts[ending] || 0) + 1;
+    });
+    const entropyTerm = -Object.values(endingCounts).reduce((s, countVal) => {
+        const p = countVal / maxNumbers;
+        return s + p * Math.log2(p);
+    }, 0);
+
+    // Entropía de Intervalos (Shannon)
+    const intervalCounts: { [key: number]: number } = {};
+    for (let idx = 0; idx < sorted.length - 1; idx++) {
+        const diff = sorted[idx+1] - sorted[idx];
+        intervalCounts[diff] = (intervalCounts[diff] || 0) + 1;
+    }
+    const numIntervals = maxNumbers - 1;
+    const entropyInt = -Object.values(intervalCounts).reduce((s, countVal) => {
+        const p = countVal / numIntervals;
+        return s + p * Math.log2(p);
     }, 0);
 
     let stats: any = {
@@ -2797,9 +3799,11 @@ class DataLotto49Advanced {
       agrupDecenas: tensGroups,
       sumaDigitos: digitSum,
       desviacion: stdDev.toFixed(2),
-      entropia: entropy.toFixed(3),
+      entropiaTerminaciones: entropyTerm.toFixed(3),
+      entropiaIntervalos: entropyInt.toFixed(3),
       _desviacion: stdDev,
-      _entropia: entropy,
+      _entropiaTerminaciones: entropyTerm,
+      _entropiaIntervalos: entropyInt,
     };
 
     if (stars.length > 0) {
@@ -2874,11 +3878,40 @@ class DataLotto49Advanced {
     };
 
     const ticketDiv = document.getElementById('ticket');
+    if (!ticketDiv) return;
+
+    if (ticketDiv.classList.contains('conflict')) {
+        ticketDiv.classList.remove('conflict');
+        ticketDiv.innerHTML = `
+          <div class="ticket-header">
+            <h4>🎫 Tu Boleto Ganador</h4>
+            <p id="ticketDate"></p>
+          </div>
+          <div class="ticket-draw-date-selector">
+              <label>Fecha del Sorteo (Opcional):</label>
+              <input type="date" id="ticketDrawDate">
+          </div>
+          <div id="ticketCombinations"></div>
+          <div class="ticket-actions">
+            <button class="ticket-btn save-btn" id="saveBtn">
+              💾 Guardar Boleto
+            </button>
+            <button class="ticket-btn share-btn" id="shareBtn">
+              📤 Compartir
+            </button>
+          </div>
+        `;
+        
+        // Re-attach listeners to the reconstructed buttons
+        document.getElementById('saveBtn')?.addEventListener('click', () => this.saveTicket());
+        document.getElementById('shareBtn')?.addEventListener('click', () => this.shareTicket());
+    }
+
     const combinationsDiv = document.getElementById('ticketCombinations');
     const ticketDateEl = document.getElementById('ticketDate');
     if (ticketDateEl) ticketDateEl.textContent = new Date().toLocaleString();
     
-    if (!combinationsDiv || !ticketDiv) return;
+    if (!combinationsDiv) return;
     combinationsDiv.innerHTML = '';
     
     finalCombinations.forEach((combo, idx) => {
@@ -3125,13 +4158,25 @@ class DataLotto49Advanced {
       return;
     }
 
+    const filterSelect = document.getElementById('savedTicketsGameFilter') as HTMLSelectElement;
+    const filterVal = filterSelect ? filterSelect.value : 'all';
+
+    const filteredTickets = filterVal === 'all'
+      ? this.savedTickets
+      : this.savedTickets.filter(t => t.gameId === filterVal);
+
+    if (filteredTickets.length === 0) {
+      container.innerHTML = '<div style="color:#666; text-align: center; padding: 20px;">No tienes boletos guardados para este juego</div>';
+      return;
+    }
+
     const strategyMap: { [key: string]: string } = {
         simple: 'Simple',
         winning: 'E. Ganadora',
         multiple: 'Múltiple'
     };
 
-    this.savedTickets.forEach(ticket => {
+    filteredTickets.forEach(ticket => {
       const item = document.createElement('div');
       item.className = 'saved-ticket-item';
       const strategyName = strategyMap[ticket.strategy] || ticket.strategy;
@@ -3449,11 +4494,11 @@ class DataLotto49Advanced {
     if (!ticket) return;
 
     const URLS: { [key: string]: string } = {
-        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta/',
-        primitiva: 'https://juegos.loteriasyapuestas.es/jugar/la-primitiva/apuesta/',
-        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta/',
-        eurodreams: 'https://juegos.loteriasyapuestas.es/jugar/eurodreams/apuesta/',
-        gordo: 'https://juegos.loteriasyapuestas.es/jugar/el-gordo-de-la-primitiva/apuesta/'
+        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta',
+        primitiva: 'https://juegos.loteriasyapuestas.es/jugar/la-primitiva/apuesta',
+        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta/?access=headercms&lang=es',
+        eurodreams: 'https://juegos.loteriasyapuestas.es/jugar/eurodreams/apuesta',
+        gordo: 'https://juegos.loteriasyapuestas.es/jugar/gordo-primitiva/apuesta/?access=headercms&lang=es'
     };
 
     const lotteryUrl = this.customGameUrls[gameKey] || URLS[gameKey];
