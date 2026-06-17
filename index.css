@@ -1523,16 +1523,18 @@ body {
 }
 
 .ticket-number {
-  width: 25px;
-  height: 25px;
+  width: 32px;
+  height: 32px;
   background: var(--primary);
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(0.7rem, 2vw, 0.9rem);
+  font-size: 0.9rem;
+  font-weight: bold;
   flex-shrink: 0;
+  box-shadow: 0 1.5px 3px rgba(0,0,0,0.15);
 }
 
 .ticket-draw-date-selector {

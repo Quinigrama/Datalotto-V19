@@ -27,7 +27,7 @@
       <li id="game-euromillones"><a href="#" data-action="switch-game" data-game="euromillones">🇪🇺 Euromillones</a></li>
       <li id="game-eurodreams"><a href="#" data-action="switch-game" data-game="eurodreams">🌙 EuroDreams</a></li>
       <li class="divider"></li>
-      <li><a href="#" id="configUrlsBtn">🔗 Enlaces a Juegos</a></li>
+      <li><a href="#" id="configUrlsBtn">🔗 Enlaces a URLs</a></li>
       <li><a href="#" id="filtersDashboardBtn">📊 Filtros de Juego</a></li>
       <li><a href="#" id="contactBtn">✉️ Contacto</a></li>
       <li><a href="#" class="disabled">❓ Tutorial</a></li>
@@ -1253,6 +1253,24 @@
         </div>
         <div class="modal-actions">
             <button class="modal-btn cancel" id="closePlayOnlineModalBtn">Cerrar</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Modal para Enlace de Juego Vacío -->
+  <div class="modal" id="setUrlPromptModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚠️ Enlace de Juego Vacío</h3>
+            <p id="setUrlPromptMessage">El enlace para Jugar Online está vacío. Escribe el enlace a continuación para este juego:</p>
+        </div>
+        <div class="modal-body" style="text-align: left; display: flex; flex-direction: column; gap: 10px;">
+            <label id="setUrlPromptLabel" style="font-weight: bold; font-size: 0.9rem; color: var(--gray);"></label>
+            <input type="text" id="setUrlPromptInput" class="modal-input" style="width: 100%;" placeholder="https://...">
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="cancelSetUrlPromptBtn">Cancelar</button>
+            <button class="modal-btn confirm" id="saveSetUrlPromptBtn">Guardar y Jugar</button>
         </div>
     </div>
   </div>

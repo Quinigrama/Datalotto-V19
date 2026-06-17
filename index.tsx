@@ -153,11 +153,11 @@ class DataLotto49Advanced {
     this.favoriteGames = new Set();
     this.currentGame = GAMES['bonoloto'];
     this.customGameUrls = {
-        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta',
-        primitiva: 'https://juegos.loteriasyapuestas.es/jugar/la-primitiva/apuesta',
-        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta/?access=headercms&lang=es',
-        eurodreams: 'https://juegos.loteriasyapuestas.es/jugar/eurodreams/apuesta',
-        gordo: 'https://juegos.loteriasyapuestas.es/jugar/gordo-primitiva/apuesta/?access=headercms&lang=es'
+        bonoloto: '',
+        primitiva: '',
+        euromillones: '',
+        eurodreams: '',
+        gordo: ''
     };
     this.filterPresets = [];
     this.gameFilters = {};
@@ -213,6 +213,7 @@ class DataLotto49Advanced {
   init() {
     this.createNumbersGrid();
     this.loadState();
+    this.updateSidebarGameOrder();
     this.updateUIFromFilterState();
     this.initializeHistoricalData();
     this.analyzeNumbers();
@@ -220,6 +221,7 @@ class DataLotto49Advanced {
     this.bindEvents();
     this.updateSavedTickets();
     this.updateDataAnalysis();
+    this.updateFilterBadgesFromAudit();
     
     // Initialize Big Data with current day selected
     const daySelect = document.getElementById('nextDrawDay') as HTMLSelectElement;
@@ -498,9 +500,19 @@ class DataLotto49Advanced {
         }
 
         // Geometric
-        if (this.filters.geometric && this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
+        const hasGeomActive = (this.filters.geometric && 
+                               ((this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) ||
+                                (this.filters.geometric.favor && this.filters.geometric.favor.length > 0)));
+        if (hasGeomActive) {
             results.geometric.count++;
-            if (!this.hasGeometricPattern(combo, this.filters.geometric.exclude)) results.geometric.passed++;
+            let comboPassed = true;
+            if (this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
+                if (this.hasGeometricPattern(combo, this.filters.geometric.exclude)) comboPassed = false;
+            }
+            if (this.filters.geometric.favor && this.filters.geometric.favor.includes('espaciados')) {
+                if (!this.isSpaced(combo)) comboPassed = false;
+            }
+            if (comboPassed) results.geometric.passed++;
         }
 
         // Stars
@@ -705,7 +717,14 @@ class DataLotto49Advanced {
       });
     }
 
-    ticketDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Scroll to ticket with safety delay and mobile optimization
+    setTimeout(() => {
+        try {
+            ticketDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err) {
+            ticketDiv.scrollIntoView();
+        }
+    }, 150);
   }
 
   resetFiltersToDefault() {
@@ -750,8 +769,8 @@ class DataLotto49Advanced {
     Object.keys(results).forEach(key => {
       const item = results[key];
       // Only show badge if the filter was actually evaluated (count > 0)
-      // and it restricted combinations (percent < 100)
-      if (item.count > 0 && item.percent < 100) {
+      // and it restricted combinations (percent < 100), OR if it's the geometric filter
+      if (item.count > 0 && (item.percent < 100 || key === 'geometric')) {
         const selector = filterSelectors[key];
         if (!selector) return;
 
@@ -1471,6 +1490,7 @@ class DataLotto49Advanced {
             }
             this.saveState();
             this.renderGameSelectionList();
+            this.updateSidebarGameOrder();
         };
 
         item.appendChild(btn);
@@ -1525,11 +1545,50 @@ class DataLotto49Advanced {
             }
             this.saveState();
             this.renderPlayOnlineList();
+            this.updateSidebarGameOrder();
         };
 
         item.appendChild(btn);
         item.appendChild(favBtn);
         listContainer.appendChild(item);
+    });
+  }
+
+  updateSidebarGameOrder() {
+    const sidebarUL = document.querySelector('#sidebar .sidebar-links');
+    if (!sidebarUL) return;
+
+    const gameIds = ['bonoloto', 'primitiva', 'gordo', 'euromillones', 'eurodreams'];
+    const gameElements: { [key: string]: HTMLElement } = {};
+    
+    gameIds.forEach(id => {
+      const el = document.getElementById(`game-${id}`);
+      if (el) {
+        gameElements[id] = el;
+        el.remove();
+      }
+    });
+
+    // Sort according to favorites, then original order
+    const sortedGameIds = [...gameIds].sort((a, b) => {
+      const aFav = this.favoriteGames.has(a);
+      const bFav = this.favoriteGames.has(b);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return gameIds.indexOf(a) - gameIds.indexOf(b);
+    });
+
+    // Find the divider or insert at beginning of UL
+    const divider = sidebarUL.querySelector('.divider');
+    sortedGameIds.forEach(id => {
+      const el = gameElements[id];
+      if (el) {
+        if (divider) {
+          sidebarUL.insertBefore(el, divider);
+        } else {
+          sidebarUL.appendChild(el);
+        }
+      }
     });
   }
 
@@ -2362,6 +2421,7 @@ class DataLotto49Advanced {
     this.analyzeNumbers();
     this.updateGridNumberStates();
     this.updateDataAnalysis();
+    this.updateFilterBadgesFromAudit();
     this.closeSidebar();
     
     this.showToast(`Cambiado a ${this.currentGame.name}`, 'success');
@@ -2715,14 +2775,19 @@ class DataLotto49Advanced {
             const display = document.getElementById(`${target.id}Value`);
             if (display) display.textContent = target.value;
         }
-        this.updateFilterStateFromUI();
+        this.updateFilterBadgesFromAudit();
+    });
+    document.querySelector('.filters-panel')?.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.type === 'range') return; // already handled by input event
+        this.updateFilterBadgesFromAudit();
     });
     document.querySelector('.filters-panel')?.addEventListener('click', e => {
         // FIX: Cast to HTMLElement to access classList
        const target = e.target as HTMLElement;
        if(target.classList.contains('filter-chip')) {
            target.classList.toggle('active');
-           this.updateFilterStateFromUI();
+           this.updateFilterBadgesFromAudit();
        }
     });
     document.getElementById('disclaimerBtn')?.addEventListener('click', () => this.toggleModal('disclaimerModal', true));
@@ -2754,6 +2819,31 @@ class DataLotto49Advanced {
     
     document.getElementById('closeConfigUrlsBtn')?.addEventListener('click', () => this.toggleModal('configUrlsModal', false));
     document.getElementById('saveConfigUrlsBtn')?.addEventListener('click', () => this.saveConfigUrls());
+
+    document.getElementById('cancelSetUrlPromptBtn')?.addEventListener('click', () => this.toggleModal('setUrlPromptModal', false));
+    document.getElementById('saveSetUrlPromptBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('setUrlPromptInput') as HTMLInputElement;
+        const gameKey = (this as any).pendingPlayGameKey;
+        if (!input || !gameKey) return;
+        
+        let val = input.value.trim();
+        if (!val) {
+            this.showToast('Por favor, escribe un enlace válido.', 'warning');
+            return;
+        }
+        
+        if (!/^https?:\/\//i.test(val)) {
+            val = 'https://' + val;
+        }
+        
+        this.customGameUrls[gameKey] = val;
+        this.saveState();
+        this.toggleModal('setUrlPromptModal', false);
+        this.showToast('✅ Enlace configurado correctamente.', 'success');
+        
+        // Retry playing online with the new URL!
+        this.confirmPlayOnline(gameKey);
+    });
 
     document.getElementById('closeGameSelectionBtn')?.addEventListener('click', () => this.toggleModal('gameSelectionModal', false));
     document.getElementById('closePlayOnlineModalBtn')?.addEventListener('click', () => this.toggleModal('playOnlineModal', false));
@@ -3621,8 +3711,13 @@ class DataLotto49Advanced {
       }
 
       // 12. GEOMÉTRICOS: grid loops
-      if (this.filters.geometric && this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
-          if (this.hasGeometricPattern(combination, this.filters.geometric.exclude)) return false;
+      if (this.filters.geometric) {
+          if (this.filters.geometric.exclude && this.filters.geometric.exclude.length > 0) {
+              if (this.hasGeometricPattern(combination, this.filters.geometric.exclude)) return false;
+          }
+          if (this.filters.geometric.favor && this.filters.geometric.favor.includes('espaciados')) {
+              if (!this.isSpaced(combination)) return false;
+          }
       }
 
       // 13. ESTRELLAS: checked in similar lazy order
@@ -4031,8 +4126,14 @@ class DataLotto49Advanced {
     }
     
     ticketDiv.classList.add('show');
-    // Scroll to ticket
-    ticketDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Scroll to ticket with safety delay and mobile optimization
+    setTimeout(() => {
+        try {
+            ticketDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err) {
+            ticketDiv.scrollIntoView();
+        }
+    }, 150);
   }
   saveTicket() {
     if (!this.currentTicket) return;
@@ -4544,16 +4645,30 @@ class DataLotto49Advanced {
     const ticket = (this as any).pendingPlayTicket as Ticket;
     if (!ticket) return;
 
-    const URLS: { [key: string]: string } = {
-        bonoloto: 'https://juegos.loteriasyapuestas.es/jugar/bonoloto/apuesta',
-        primitiva: 'https://juegos.loteriasyapuestas.es/jugar/la-primitiva/apuesta',
-        euromillones: 'https://juegos.loteriasyapuestas.es/jugar/euromillones/apuesta/?access=headercms&lang=es',
-        eurodreams: 'https://juegos.loteriasyapuestas.es/jugar/eurodreams/apuesta',
-        gordo: 'https://juegos.loteriasyapuestas.es/jugar/gordo-primitiva/apuesta/?access=headercms&lang=es'
-    };
+    let lotteryUrl = this.customGameUrls[gameKey] || '';
+    if (!lotteryUrl || lotteryUrl.trim() === '') {
+        // Enlace vacío! Avisamos al usuario y le permitimos escribirlo
+        (this as any).pendingPlayGameKey = gameKey;
+        const names: { [key: string]: string } = {
+            bonoloto: '🇪🇸 Bonoloto España',
+            primitiva: '🇪🇸 Primitiva España',
+            gordo: '🏆 El Gordo',
+            euromillones: '🇪🇺 Euromillones',
+            eurodreams: '🌙 EuroDreams'
+        };
+        const label = document.getElementById('setUrlPromptLabel');
+        if (label) {
+            label.textContent = `${names[gameKey] || gameKey}:`;
+        }
+        const input = document.getElementById('setUrlPromptInput') as HTMLInputElement;
+        if (input) {
+            input.value = '';
+            input.placeholder = 'https://...';
+        }
+        this.toggleModal('setUrlPromptModal', true);
+        return;
+    }
 
-    const lotteryUrl = this.customGameUrls[gameKey] || URLS[gameKey];
-    
     let combosToPlay = ticket.combinations;
 
     if (ticket.combinations.length === 1 && ticket.combinations[0].length > 6) {
@@ -4572,7 +4687,7 @@ class DataLotto49Advanced {
         .then(() => {
             window.open(lotteryUrl, '_blank');
             this.toggleModal('playOnlineModal', false);
-            this.showToast('🌐 Web oficial abierta. ¡Combinaciones copiadas!', 'success');
+            this.showToast('🌐 Web abierta. ¡Combinaciones copiadas!', 'success');
         })
         .catch(err => {
             console.error('Error al copiar al portapapeles:', err);
