@@ -62,10 +62,26 @@ body {
 .container {
   max-width: 100%;
   margin: 0 auto;
-  padding: 0 5px;
+  padding: 75px 5px 0 5px; /* Added spacing to prevent overlap with floating top bar */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.app-top-title {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-weight: bold;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  z-index: 1100;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .header {
@@ -122,9 +138,29 @@ body {
 }
 
 #disclaimerBtn {
-    border-color: var(--warning);
+    position: fixed;
+    top: 24px;
+    right: 20px;
+    width: 32px;
+    height: 32px;
+    border: none;
     background: var(--warning);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: var(--transition);
     animation: disclaimerPulse 2s infinite;
+}
+
+#disclaimerBtn:hover {
+    transform: scale(1.05);
+    background: #d97706; /* shade of warning/orange on hover */
 }
 
 
@@ -372,6 +408,28 @@ body {
   gap: 4px;
   max-width: 100%;
   margin: 0 auto;
+}
+
+/* Custom styles for Lotería Nacional grid to auto-adjust nicely on mobile */
+.numbers-grid.game-nacional {
+  grid-template-columns: repeat(10, 1fr) !important;
+  gap: 4px !important;
+}
+
+.numbers-grid.game-nacional .number-ball {
+  min-height: unset !important;
+  aspect-ratio: 1 !important;
+  font-size: clamp(0.55rem, 2.8vw, 0.95rem) !important;
+}
+
+@media(max-width: 480px) {
+  .numbers-grid.game-nacional {
+    gap: 3px !important;
+  }
+  .numbers-grid.game-nacional .number-ball {
+    min-height: 24px !important;
+    font-size: 0.65rem !important;
+  }
 }
 
 @media(min-width: 480px) {
@@ -1006,12 +1064,17 @@ body {
     grid-template-columns: 1fr;
     gap: 15px;
 }
-@media(min-width: 600px) {
+@media(min-width: 600px) and (max-width: 899px) {
     .bigdata-grid {
         grid-template-columns: 1fr 1fr;
     }
     .bigdata-matrix {
         grid-column: 1 / -1;
+    }
+}
+@media(min-width: 900px) {
+    .bigdata-grid {
+        grid-template-columns: 1fr 1fr 1.1fr;
     }
 }
 
@@ -1084,10 +1147,31 @@ body {
 
 .strategy-matrix-buttons {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr); /* 4 columns for large displays to accommodate conserve, balance, risk AND AI predict */
     gap: 8px;
     margin-top: 10px;
 }
+
+@media (max-width: 640px) {
+    .strategy-matrix-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        overflow-x: visible;
+    }
+    
+    .strategy-matrix-buttons .bd-strat-btn {
+        flex: unset;
+        min-width: unset;
+        width: 100%;
+    }
+}
+@media (max-width: 360px) {
+    .strategy-matrix-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+
 .bd-strat-btn {
     padding: 10px 5px;
     border: 1px solid #bfdbfe;
@@ -1333,10 +1417,11 @@ body {
   border-color: var(--primary);
 }
 
-.strategy-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+.strategy-btn.active,
+.strategy-btn.active:hover {
+  background: var(--primary) !important;
+  color: white !important;
+  border-color: var(--primary) !important;
 }
 
 .input-row {
@@ -2620,6 +2705,136 @@ textarea.modal-input {
 /* Scroll smooth indicators */
 .sidebar, .modal-content, .filters-panel {
     -webkit-overflow-scrolling: touch;
+}
+
+/* ===== ADVANCED MOBILE RESPONSIVENESS AND BALL CONTAINER WRAPPING ===== */
+@media (max-width: 480px) {
+  /* Prevent number grids from overflowing */
+  .numbers-grid {
+    gap: 3px !important;
+  }
+  
+  .stars-grid {
+    gap: 4px !important;
+    grid-template-columns: repeat(auto-fit, minmax(28px, 1fr)) !important;
+  }
+  
+  /* Make all number selection balls shrink to fit parent containers */
+  .number-ball {
+    min-height: unset !important;
+    aspect-ratio: 1 !important;
+    font-size: clamp(0.6rem, 3.2vw, 0.9rem) !important;
+  }
+  
+  /* Shrink selected/hot/cold indicator icons and place nicely */
+  .number-ball .number-icon {
+    width: 12px !important;
+    height: 12px !important;
+    font-size: 8px !important;
+    line-height: 12px !important;
+    top: -2px !important;
+    right: -2px !important;
+  }
+}
+
+/* New Responsive Mini Draw Card for Big Data Intelligence */
+.mini-draw-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.mini-draw-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed #cbd5e1;
+    padding-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.mini-draw-label {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--dark);
+}
+
+.mini-draw-date {
+    font-size: 0.75rem;
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.mini-draw-balls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.mini-balls-group, .mini-stars-group, .mini-extra-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.mini-stars-group {
+    border-left: 2px solid #e2e8f0;
+    padding-left: 8px;
+}
+
+.mini-extra-group {
+    border-left: 2px solid #e2e8f0;
+    padding-left: 8px;
+}
+
+.mini-ball.complementario-ball {
+    background: #3b82f6 !important;
+    color: white !important;
+    border-color: #2563eb !important;
+    font-size: 0.65rem;
+    width: 24px;
+    height: 24px;
+    font-weight: bold;
+}
+
+.mini-ball.reintegro-ball {
+    background: #ef4444 !important;
+    color: white !important;
+    border-color: #dc2626 !important;
+    font-size: 0.65rem;
+    width: 24px;
+    height: 24px;
+    font-weight: bold;
+}
+
+/* CSS Grid layout for advanced filters panel and national filters panel */
+#standardFiltersContainer, #nacionalFiltersContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    width: 100%;
+}
+
+/* Lotería Nacional Frequency Subcharts Responsive Alignment */
+@media (max-width: 480px) {
+  .nacional-freq-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+/* Responsive Stat Grid layout for Analizador Estadístico */
+.stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
 }
 
 

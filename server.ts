@@ -333,35 +333,58 @@ Devuelve obligatoriamente un objeto en formato JSON según el esquema de respues
       return key ? process.env[key] : null;
     };
 
-    const emailUser = getEnv("EMAIL_USER");
-    const emailPass = getEnv("EMAIL_PASS");
+    const telegramToken = getEnv("TELEGRAM_BOT_TOKEN");
+    const telegramChatId = getEnv("TELEGRAM_CHAT_ID");
 
-    if (!emailUser || !emailPass) {
-      console.error("Faltan credenciales de email (EMAIL_USER o EMAIL_PASS)");
-      return res.status(500).json({ error: "El servidor no está configurado para enviar correos." });
+    const isPlaceholder = (val: string | null | undefined) => {
+      if (!val) return true;
+      const lower = val.toLowerCase();
+      return lower.includes("tu-") || lower.includes("example") || lower.includes("placeholder") || lower.trim() === "";
+    };
+
+    const hasTelegram = telegramToken && telegramChatId && !isPlaceholder(telegramToken) && !isPlaceholder(telegramChatId);
+
+    if (!hasTelegram) {
+      console.error("Falta la configuración de Telegram.");
+      return res.status(400).json({ 
+        error: "Falta configurar correctamente Telegram. Accede al menú de arriba a la derecha (Settings) > Secrets e introduce el valor para TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID." 
+      });
+    }
+
+    // Validar formato mínimo de token de Telegram (ej. contiene dos puntos ':')
+    if (!telegramToken!.includes(":")) {
+      return res.status(400).json({
+        error: "El token de Telegram no es válido (debe tener el formato 'números:letras', ej: 123456:ABC-def)."
+      });
     }
 
     try {
-      const mailOptions = {
-        from: emailUser,
-        to: "Datalotto49@gmail.com",
-        subject: "Nuevo mensaje de contacto - DataLotto49",
-        text: `Mensaje: ${message}\n\nEmail del usuario: ${email || "No proporcionado"}`,
-      };
-
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: emailUser,
-          pass: emailPass,
-        },
+      const text = `📬 *Nuevo mensaje de contacto - DataLotto*\n\n*Mensaje:* ${message}\n\n*Usuario Contacto:* ${email || "No proporcionado"}`;
+      const url = `https://api.telegram.org/bot${telegramToken!.trim()}/sendMessage`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: telegramChatId!.trim(),
+          text: text,
+          parse_mode: "Markdown"
+        })
       });
 
-      await transporter.sendMail(mailOptions);
-      res.json({ success: true, message: "Mensaje enviado correctamente." });
-    } catch (error) {
-      console.error("Error enviando email:", error);
-      res.status(500).json({ error: "Error al enviar el mensaje. Inténtalo de nuevo más tarde." });
+      if (response.ok) {
+        return res.json({ success: true, message: "Mensaje de contacto enviado correctamente a tu bot de Telegram." });
+      } else {
+        const errText = await response.text();
+        console.error(`Telegram API responded with status ${response.status}: ${errText}`);
+        return res.status(400).json({
+          error: `Error al enviar a Telegram (${response.status}): ${errText}. Por favor verifica el Token de tu bot y tu Chat ID en Settings > Secrets.`
+        });
+      }
+    } catch (error: any) {
+      console.error("Error enviando a Telegram:", error);
+      return res.status(500).json({
+        error: `Error interno de conexión con Telegram: ${error.message || error}`
+      });
     }
   });
 

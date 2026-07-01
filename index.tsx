@@ -13,6 +13,7 @@ interface Draw {
   complementario?: number; // Added for 6/49
   reintegro?: number; // Added for 6/49
   sum: number;
+  drawType?: 'navidad' | 'nino' | 'normal';
 }
 
 interface Ticket {
@@ -60,7 +61,30 @@ interface Filters {
     markovDepth: number;
     nashWeight: number;
     regressionBonus: number;
-  }
+  };
+  // Lotería Nacional specific filters
+  nacionalSumaDigitos?: { min: number; max: number };
+  nacionalCapicua?: string;
+  nacionalPrimo?: string;
+  nacionalCuadradoCubo?: string;
+  nacionalRepdigits?: string;
+  nacionalMultiploDe?: number;
+  nacionalFranja?: { min: number; max: number };
+  nacionalObjetivo?: string;
+  nacionalDistanciaObjetivo?: { min: number; max: number };
+  nacionalParidad?: string[]; // 5-length array
+  nacionalAltoBajo?: string[];  // 5-length array
+  nacionalConsecutivos?: string;
+  nacionalSumaMitades?: string;
+  nacionalParesConteo?: string[];
+  nacionalAltosConteo?: string[];
+  nacionalUnicos?: number[];
+  nacionalModaRepeticiones?: { min: number; max: number };
+  nacionalCeros?: string[];
+  nacionalPrimosDigitos?: { min: number; max: number };
+  nacionalRangoInterno?: { min: number; max: number };
+  nacionalDesviacion?: { min: number; max: number };
+  nacionalEntropiaDigitos?: { min: number; max: number };
 }
 
 interface FilterPreset {
@@ -109,6 +133,8 @@ class DataLotto49Advanced {
     currentTicket: Ticket | null;
     currentValidatingTicket: Ticket | null;
     historicalData: Draw[];
+    allHistoricalData: Draw[];
+    nacionalDrawFilter: 'all' | 'navidad' | 'nino';
     numberStats: { [key: number]: { frequency: number; score: number; lastSeen: number; } };
     starStats: { [key: number]: { frequency: number; score: number; lastSeen: number; } }; // New for Euromillones
     analysisPeriod: number;
@@ -118,6 +144,7 @@ class DataLotto49Advanced {
     primes: Set<number>;
     TOLERANCE_LEVELS: { [key: number]: number };
     currentGame: GameConfig;
+    helpModeActive: boolean;
 
     // New AI & Correlation UI elements
     aiPredictBtn: HTMLElement | null = null;
@@ -135,6 +162,7 @@ class DataLotto49Advanced {
     currentSuggestedProfile: { hot: number; neutral: number; cold: number; starHot?: number; starNeutral?: number; starCold?: number } = { hot: 2, neutral: 3, cold: 1 };
 
   constructor() {
+    this.helpModeActive = false;
     // Estado del sistema
     this.selectedNumbers = new Set();
     this.selectedStars = new Set();
@@ -157,7 +185,8 @@ class DataLotto49Advanced {
         primitiva: '',
         euromillones: '',
         eurodreams: '',
-        gordo: ''
+        gordo: '',
+        nacional: ''
     };
     this.filterPresets = [];
     this.gameFilters = {};
@@ -176,6 +205,8 @@ class DataLotto49Advanced {
     this.currentTicket = null;
     this.currentValidatingTicket = null;
     this.historicalData = [];
+    this.allHistoricalData = [];
+    this.nacionalDrawFilter = 'all';
     this.numberStats = {};
     this.starStats = {};
     this.analysisPeriod = 100;
@@ -211,10 +242,27 @@ class DataLotto49Advanced {
   }
 
   init() {
-    this.createNumbersGrid();
     this.loadState();
+    this.createNumbersGrid();
+
+    // Ensure sidebar has the correct active game class from the loaded game
+    document.querySelectorAll('.sidebar-links li').forEach(li => {
+      li.classList.remove('active');
+    });
+    const activeLi = document.getElementById(`game-${this.currentGame.id}`);
+    if (activeLi) activeLi.classList.add('active');
+
+    // Update dynamic header title to match loaded game
+    this.updateHeaderTitle();
+
+    // Scroll listener for fading out header title on scroll
+    window.addEventListener('scroll', () => {
+        this.updateTopTitleVisibility();
+    }, { passive: true });
+
     this.updateSidebarGameOrder();
     this.updateUIFromFilterState();
+    this.updateGameSpecificUI();
     this.initializeHistoricalData();
     this.analyzeNumbers();
     this.updateGridNumberStates();
@@ -238,6 +286,646 @@ class DataLotto49Advanced {
             console.error("No se pudo iniciar el auto-diagnóstico:", diagErr);
         }
     }, 100);
+  }
+
+  updateHeaderTitle() {
+    const headerTitle = document.querySelector('.header h1');
+    if (headerTitle) {
+        const gameId = this.currentGame.id;
+        if (gameId === 'bonoloto') {
+            headerTitle.textContent = 'Bonoloto 6/49';
+        } else if (gameId === 'primitiva') {
+            headerTitle.textContent = 'La Primitiva 6/49';
+        } else if (gameId === 'euromillones') {
+            headerTitle.textContent = 'Euromillones 5/50 ⭐2/12';
+        } else if (gameId === 'eurodreams') {
+            headerTitle.textContent = 'EuroDreams 6/40 🌙1/5';
+        } else if (gameId === 'gordo') {
+            headerTitle.textContent = 'El Gordo 5/54 🔑1/10';
+        } else if (gameId === 'nacional') {
+            headerTitle.textContent = 'Lotería Nacional';
+        } else {
+            headerTitle.textContent = '🎲 DataLotto';
+        }
+    }
+  }
+
+  updateTopTitleVisibility() {
+    const topTitle = document.querySelector('.app-top-title') as HTMLElement;
+    if (!topTitle) return;
+    
+    const sidebar = document.getElementById('sidebar');
+    const isSidebarOpen = sidebar ? sidebar.classList.contains('open') : false;
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+    if (isSidebarOpen || scrollTop > 20) {
+        topTitle.style.opacity = '0';
+        topTitle.style.pointerEvents = 'none';
+        topTitle.style.transform = 'translate(-50%, -10px)';
+    } else {
+        topTitle.style.opacity = '1';
+        topTitle.style.pointerEvents = 'none';
+        topTitle.style.transform = 'translate(-50%, 0)';
+    }
+  }
+
+  toggleHelpMode() {
+    this.closeSidebar();
+    this.helpModeActive = !this.helpModeActive;
+    
+    const btn = document.getElementById('helpModeBtn');
+    if (btn) {
+        if (this.helpModeActive) {
+            btn.innerHTML = '❌ Desactivar Modo Ayuda';
+            this.showToast('ℹ️ Modo Ayuda Activado. Pulsa en cualquier botón o filtro para ver qué hace.', 'info');
+        } else {
+            btn.innerHTML = '❓ Modo Ayuda';
+            this.showToast('✅ Modo Ayuda Desactivado.', 'success');
+        }
+    }
+  }
+
+  showHelpForElement(target: HTMLElement) {
+    let title = "Manual DataLotto";
+    let body = `
+        <p>Estás en el <strong>Modo Ayuda</strong> de DataLotto49.</p>
+        <p>Al pulsar sobre cualquier botón, pestaña, filtro o control del panel, se interceptará su acción tradicional para mostrarte en esta ventana emergente una explicación detallada de su teoría de juego y funcionalidad.</p>
+        <p><strong>¿Cómo empezar?</strong></p>
+        <ul>
+            <li>Pulsa sobre los <strong>Modos de Selección</strong> (Calientes, Fríos, Ausentes) para entender cómo clasificar los números.</li>
+            <li>Haz clic en cualquiera de los <strong>Filtros Matemáticos</strong> para aprender conceptos como Entropía, Sumas campana de Gauss, Distribución y Desviación Estándar.</li>
+            <li>Pulsa sobre el botón <strong>Generar combinación</strong> para conocer la fuerza bruta inteligente operada por el sistema.</li>
+        </ul>
+        <p>Para volver a usar la aplicación de forma normal, accede de nuevo al menú del lateral izquierdo y pulsa en <strong>❌ Desactivar Modo Ayuda</strong>.</p>
+    `;
+
+    // 0. Si se pulsa sobre algún componente o etiqueta dentro de un filtro, priorizar su explicación científica
+    const filterGroup = target.closest<HTMLElement>('.filter-group');
+    if (filterGroup) {
+        const titleText = filterGroup.querySelector('.filter-title')?.textContent || '';
+        let matched = false;
+        
+        if (titleText.includes('Excluir Terminaciones') || filterGroup.querySelector('#terminacionesOptions')) {
+            matched = true;
+            title = "🚫 Excluir Terminaciones";
+            body = `
+                <p><strong>¿Qué es el filtro de Excluir Terminaciones?</strong></p>
+                <p>Permite descartar de manera selectiva combinaciones de boletos basándose en la cifra terminal de los números individuales que las componen.</p>
+                <p><strong>Teoría de Juego y Fundamento Matemático:</strong></p>
+                <p>En la lotería, a menudo los apostadores tienen presentimientos o supersticiones negativas sobre ciertas terminaciones (por ejemplo, el número 13 termina en 3, o no desear terminaciones en 0 o 9). Más de lo analítico-probabilístico, este filtro matemáticamente reduce las combinaciones al eliminar grupos completos de números de tu jugada. Por ejemplo, al excluir la terminación <b>"7"</b>, estás eliminando del bombo el 7, 17, 27, 37 y 47.</p>
+                <p><strong>Estrategia Aplicada:</strong></p>
+                <p>Si los últimos sorteos históricos de la base de datos de DataLotto han mostrado una saturación anormal de salidas de una terminación concreta (por ejemplo, tres sorteos seguidos con múltiples números terminados en 2), la ley de distribución uniforme sugiere que esa terminación entrará pronto en una fase de enfriamiento. Al excluirla de tus jugadas temporales, evitas combinaciones cargadas de esa cifra.</p>
+            `;
+        } else if (titleText.includes('Variedad de Terminaciones') || filterGroup.querySelector('#terminacionesDistintasOptions')) {
+            matched = true;
+            title = "#️⃣ Variedad de Terminaciones";
+            body = `
+                <p><strong>¿Qué es la Variedad de Terminaciones?</strong></p>
+                <p>Mide la cantidad de dígitos finales únicos o diferentes que componen tu jugada de 6 números.</p>
+                <p><strong>Fundamento Matemático (Teoría del Desorden):</strong></p>
+                <p>Si tuviésemos la jugada [5, 15, 25, 35, 45, 49], tenemos las terminaciones [5, 5, 5, 5, 5, 9]. Las terminaciones distintas son solo dos (el 5 y el 9), por lo que la variedad de terminaciones es 2. En cambio, si la jugada es [3, 12, 25, 34, 46, 48], las terminaciones son [3, 2, 5, 4, 6, 8], con 6 terminaciones diferentes (variedad de 6).</p>
+                <p><strong>Por qué es crítico:</strong></p>
+                <p>El análisis estadístico retrospectivo demuestra que el <strong>85% de las combinaciones ganadoras reales</strong> tienen una variedad de terminaciones de 4, 5 o 6 cifras distintas. Prácticamente nunca sale un premio gordo donde todos los números terminen igual (variedad de 1 o 2). El motor viene configurado para retener solo combinaciones con un mínimo de 4 terminaciones distintas por defecto.</p>
+            `;
+        } else if (titleText.includes('Entropía (Terminaciones)') || filterGroup.querySelector('#entropyTerminacionesMin')) {
+            matched = true;
+            title = "🌀 Entropía de Terminaciones";
+            body = `
+                <p><strong>¿Qué mide la Entropía de Terminaciones?</strong></p>
+                <p>La entropía es un concepto físico y matemático inventado por Claude Shannon (Teoría de la Información) que sirve para cuantificar el nivel de caos, desorden o imprevisibilidad de un sistema.</p>
+                <p><strong>Fórmula e Implicaciones:</strong></p>
+                <p>Se calcula matemáticamente como H = -Σ (pi * log2(pi)), donde pi es la frecuencia proporcional de aparición de cada una de las terminaciones decimales en el boleto. El rango óptimo es de 1.900 a 2.585 (la entropía máxima para 6 números únicos es 2.585).</p>
+                <p><strong>¿Por qué se usa?</strong></p>
+                <p>Los sorteos de azar de la vida real tienden al desorden máximo sostenible. Las combinaciones que tienen una entropía muy baja en sus dígitos terminales (como 12, 22, 32, 42 con terminaciones idénticas) muestran un orden estructural artificial. Al delimitar el límite inferior de la entropía en tu generador de DataLotto, desterramos de forma inmediata millones de combinaciones estériles y redundantes que representan un desperdicio del presupuesto, filtrando solo aquellas que emulan el caos termodinámico de los bombos de aire flotante tradicionales o sistemas mecánicos.</p>
+            `;
+        } else if (titleText.includes('Suma Total') || filterGroup.querySelector('#sumMin') || filterGroup.querySelector('#sumMax')) {
+            matched = true;
+            title = "🎯 Suma Total (Números)";
+            body = `
+                <p><strong>¿Qué es el Rango de Suma Total?</strong></p>
+                <p>Es el resultado de sumar directamente los 6 números que componen tu apuesta.</p>
+                <p><strong>Sustento Probabilístico (La Campana de Gauss):</strong></p>
+                <p>En una lotería clásica 6/49, la menor suma matemática posible es 21 (1+2+3+4+5+6), y la mayor es 279 (44+45+46+47+48+49). Entre estos dos límites hay millones de combinaciones.</p>
+                <p>Si graficamos la cantidad de combinaciones para cada valor de suma, visualizaremos una perfecta <strong>Campana de Gauss</strong> (distribución normal multinomial). Las sumas extremas (como 21 o 279) solo tienen una única combinación posible, por lo que su probabilidad conjunta de ocurrir es virtualmente nula. En contraposición, más del <strong>70% de las combinaciones que salen premiadas en la historia real</strong> acumulan sumatorios centrados en la cima de la campana, entre 121 y 190. Al forzar este intervalo, tu boleto se sitúa exactamente en la zona de mayor densidad probabilística mundial.</p>
+            `;
+        } else if (titleText.includes('Par/Impar') && !titleText.includes('Estrellas')) {
+            matched = true;
+            title = "⚖️ Relación Par / Impar";
+            body = `
+                <p><strong>¿Qué es la Proporción Par/Impar?</strong></p>
+                <p>Filtra la combinación en base a la cantidad de números pares frente a números impares presentes en tu boleto.</p>
+                <p><strong>Estadísticas de la Lotería:</strong></p>
+                <p>Cada número individual tiene un 50% de probabilidad de ser par o impar. Al extraer 6 números principales, las combinaciones extremas que constan únicamente de impares (0 pares / 6 impares) o únicamente de pares (6 pares / 0 impares) representan juntas menos del 2.5% de los sorteos históricos.</p>
+                <p><strong>Diseño de la Apuesta Ganadora:</strong></p>
+                <p>La máxima frecuencia de ocurrencias históricas (más del 80%) la dominan diseños equilibrados:</p>
+                <ul>
+                  <li><strong>3 Pares y 3 Impares (3P/3I)</strong>: La configuración más frecuente y estable en la naturaleza.</li>
+                  <li><strong>4 Pares y 2 Impares (4P/2I)</strong> o <strong>2 Pares y 4 Impares (2P/4I)</strong>.</li>
+                </ul>
+                <p>Al restringir el generador para que descarte combinaciones planas con proporciones extravagantes, el sistema mejora la sintonía geométrica de tus boletos producidos.</p>
+            `;
+        } else if (titleText.includes('Bajos/Altos') && !titleText.includes('Estrellas')) {
+            matched = true;
+            title = "📊 Relación Bajos / Altos";
+            body = `
+                <p><strong>¿Qué define el Filtro de Bajos y Altos?</strong></p>
+                <p>Clasifica los números del boleto en función de su magnitud:</p>
+                <ul>
+                  <li><strong>Números Bajos</strong>: Números ubicados en la mitad inferior de la tabla (por ejemplo, del 1 al 24 en un juego de 49 números).</li>
+                  <li><strong>Números Altos</strong>: Números ubicados en la mitad superior de la tabla (por ejemplo, del 25 al 49).</li>
+                </ul>
+                <p><strong>Matemática e Historial Colectivo:</strong></p>
+                <p>Al igual que la relación par/impar, la distribución equitativa es dominante. Un sorteo real donde salgan de forma simultánea únicamente números pequeños (por ejemplo: 2, 4, 7, 9, 12, 18) o únicamente números gigantescos (39, 41, 44, 45, 47, 49) ocurre de forma sumamente esporádica.</p>
+                <p><strong>Consejos de Configuración:</strong></p>
+                <p>Actvar las opciones <strong>3B/3A</strong> (3 Bajos / 3 Altos), <strong>4B/2A</strong>, o <strong>2B/4A</strong> asegura que la jugada cubra el tablero con un balance vertical perfecto, neutralizando el riesgo de estancamiento sectorial en el boleto.</p>
+            `;
+        } else if (titleText.includes('Primos') && !titleText.includes('Estrellas')) {
+            matched = true;
+            title = "🔢 Filtro de Números Primos";
+            body = `
+                <p><strong>¿Qué hace el Filtro de Números Primos?</strong></p>
+                <p>Restringe el número de dígitos primos que pueden formar parte de tu combinación generada.</p>
+                <p><strong>¿Cuáles son los números primos?</strong></p>
+                <p>Los primos son enteros positivos divisibles solo por 1 y por sí mismos. En el rango del 1 al 49, tenemos 15 primos: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47.</p>
+                <p><strong>Lógica Probabilística:</strong></p>
+                <p>Matemáticamente, cerca del 30% de los números en la lotería son primos. Los eventos reales de lotería muestran que la inmensa mayoría de las apuestas premiadas (alrededor del 82% de las ocasiones) contienen <strong>entre 1, 2 o 3 números primos</strong>. Raras veces verás un boleto ganador que esté compuesto enteramente por primos (ejemplo: 5, 7, 11, 17, 23, 31) o que carezca por completo de ellos. Ajustar los límites en el generador te mantendrá dentro de la tónica preferente de los sorteos reales.</p>
+            `;
+        } else if (titleText.includes('Consecutivos') && !titleText.includes('Estrellas')) {
+            matched = true;
+            title = "🔗 Filtro de Números Consecutivos";
+            body = `
+                <p><strong>¿Qué analiza el Filtro de Números Consecutivos?</strong></p>
+                <p>Determina la estructura de agrupamientos consecutivos de cifras numéricas continuas en un mismo boleto (por ejemplo, tener el 12 y el 13 es una pareja consecutiva).</p>
+                <p><strong>Nomenclatura Técnica del Tablero:</strong></p>
+                <ul>
+                  <li><strong>1/1/1/1/1/1</strong>: Ningún número es consecutivo (ej: 4, 12, 21, 33, 39, 45). Máxima dispersión.</li>
+                  <li><strong>2/1/1/1/1</strong>: Una pareja de números seguidos (ej: 4, 12, <strong>22, 23</strong>, 35, 41).</li>
+                  <li><strong>2/2/2</strong>: Tres parejas de números seguidos independientes.</li>
+                  <li><strong>3/1/1/1</strong>: Un trío de números consecutivos juntos (ej: <strong>14, 15, 16</strong>, 28, 32, 45).</li>
+                </ul>
+                <p><strong>Secreto de los Diseños Reales:</strong></p>
+                <p>La creencia popular asume que en la lotería nunca deben ir números seguidos. Sin embargo, la estadística destrona este mito: ¡más del <strong>50% de las combinaciones ganadoras históricas de Loterías contienen exactamente una pareja consecutiva (2/1/1/1/1)</strong>! El sistema de DataLotto te permite activar estos formatos probados para simular con precisión la impredecibilidad típica de las extracciones físicas.</p>
+            `;
+        } else if (titleText.includes('Entropía (Intervalos)') || filterGroup.querySelector('#entropyIntervalosMin')) {
+            matched = true;
+            title = "🌀 Entropía de Intervalos de Separación";
+            body = `
+                <p><strong>¿Qué es la Entropía de Intervalos de Separación?</strong></p>
+                <p>Similar al filtro de terminaciones, aplica la <strong>Entropía de la Información de Shannon</strong>, pero en este caso se computa sobre las <strong>distancias matemáticas (los intervalos)</strong> existentes entre cada número del boleto alineado de menor a mayor.</p>
+                <p><strong>Ejemplo Descriptivo:</strong></p>
+                <p>Si introduces un boleto con distancias monótonas como [5, 10, 15, 20, 25, 30], los saltos son siempre exactamente de 5. El desorden o entropía de estos intervalos es 0 (patrón predecible y estático). En cambio, un boleto real como [2, 14, 17, 28, 30, 44] tiene saltos de [12, 3, 11, 2, 14]. El nivel de entropía de este conjunto de saltos es elevado.</p>
+                <p><strong>Función de este Filtro:</strong></p>
+                <p>Impide que el generador escoja secuencias hiper-estructuradas creadas artificialmente por la mente humana que el bombo aleatorio real jamás produciría. Es la barrera defensiva número uno contra jugadas lineales improductivas.</p>
+            `;
+        } else if (titleText.includes('Distancia entre') || filterGroup.querySelector('#distanciaMin')) {
+            matched = true;
+            title = "↔️ Distancia entre Números";
+            body = `
+                <p><strong>¿Qué es el Rango de Distancia entre Números?</strong></p>
+                <p>Este filtro regula la envergadura o el tamaño de la separación permitida entre dos elementos adyacentes cualesquiera en tu boleto ordenado.</p>
+                <p><strong>Aplicación y Límites:</strong></p>
+                <ul>
+                  <li><strong>Distancia Mínima</strong>: El salto más pequeño permitido entre números consecutivos. Si fijas un valor de 2, el generador nunca pondrá números seguidos (como 12 y 13), forzando que exista al menos una separación de dos unidades o más (como 12 y 14).</li>
+                  <li><strong>Distancia Máxima</strong>: El límite superior del tamaño del salto. Si configuras una distancia máxima de 25, evitas que haya un gran agujero o abismo de separación vacío en la cuadrícula (por ejemplo, saltar directamente de la bola 3 a la 44), lo que dejaría franjas gigantes sin barajar.</li>
+                </ul>
+                <p><strong>Recomendación Profesional:</strong></p>
+                <p>Establecer la distancia mínima en 1 (lo que permite parejas consecutivas de alta incidencia) y una distancia máxima de 25 asegura que el juego baraje óptimamente todas las áreas del boleto.</p>
+            `;
+        } else if (titleText.includes('Agrupación por Decenas') || filterGroup.querySelector('#agrupDecenasOptions')) {
+            matched = true;
+            title = "📦 Agrupación por Decenas";
+            body = `
+                <p><strong>¿Qué mide la Agrupación por Decenas?</strong></p>
+                <p>Evalúa el patrón de distribución de los números según las filas o décadas de la cuadrícula física (ej. la decena del 1 al 9, del 10 al 19, del 20 al 29, del 30 al 39 y del 40 en adelante).</p>
+                <p><strong>Matemática de Compartimentos Estancos:</strong></p>
+                <p>El formato <strong>"3/2/1"</strong> significa que tu combinación tiene 3 números concentrados en una decena concreta, 2 números en otra decena, y 1 número en una decena diferente (ejemplo: [2, 5, 8, 14, 19, 21] con tres dígitos en la decena simple del 0, dos en los '10', y uno en los '20').</p>
+                <p><strong>Utilidad Científica:</strong></p>
+                <p>Evita aberraciones de distribución sectorial. Por ejemplo, tener los 6 números del boleto hacinados exclusivamente dentro de la década de los 30 (como 30, 31, 33, 35, 36, 39) tiene un histórico de ocurrencia inferior al 0.04% en sorteos internacionales. Activar agrupaciones versátiles y balanceadas como "2/2/1/1" o "2/1/1/1/1" distribuye la presión de probabilidad en todo el ancho físico del tablero.</p>
+            `;
+        } else if (titleText.includes('Suma de Dígitos') && !titleText.includes('Estrellas')) {
+            matched = true;
+            title = "∑ Suma de Dígitos";
+            body = `
+                <p><strong>¿Qué formula la Suma de Dígitos del Boleto?</strong></p>
+                <p>Desglosa cada número principal del boleto en sus cifras individuales de unidades y decenas y efectúa un sumatorio total acumulado.</p>
+                <p><strong>Ejemplo Práctico e Ilustrativo:</strong></p>
+                <p>Si tu boleto inteligente contiene los números [12, 23, 35, 41, 46], el filtro de dígitos sumará:</p>
+                <p style="text-align: center; font-size: 1.1rem; font-weight: bold; background: #f3f4f6; padding: 6px; border-radius: 6px; display: inline-block; margin: 5px auto; width: 100%;">
+                  (1 + 2) + (2 + 3) + (3 + 5) + (4 + 1) + (4 + 6) = 31
+                </p>
+                <p><strong>Por qué es una herramienta de precisión:</strong></p>
+                <p>Tanto en programación fractal como en investigación de sutiles factores pseudoaleatorios, los dígitos individuales delatan patrones de sesgo estético o error de distribución humana. Al forzar este sumatorio de cifras elementales a un rango equilibrado central (usualmente de 28 a 45), anulas cualquier combinación que presente anomalías en el reparto del espacio métrico digital del boleto de lotería.</p>
+            `;
+        } else if (titleText.includes('Desviación Estándar') || filterGroup.querySelector('#desviacionMin')) {
+            matched = true;
+            title = "📈 Desviación Estándar";
+            body = `
+                <p><strong>¿Qué es la Desviación Estándar estocástica?</strong></p>
+                <p>Es el rey de los indicadores de dispersión estadística. Mide cuantitativamente cuánto se alejan los números de tu boleto respecto a la media aritmética de esa misma jugada.</p>
+                <p><strong>Formulación Conceptual:</strong></p>
+                <p>Se calcula restando de cada número el promedio aritmético de la apuesta, elevando el valor al cuadrado, sumándolos todos, dividiendo entre N-1 y extrayendo la raíz cuadrada final.</p>
+                <p><strong>¿Qué representa en tu boleto?</strong></p>
+                <ul>
+                  <li>Una <strong>Desviación Estándar muy baja</strong> (por ejemplo: menor a 6) significa que todos los números están apretados en una sola zona.</li>
+                  <li>Una <strong>Desviación Estándar gigante</strong> (por ejemplo: mayor a 21) significa que los números están fragmentados en las esquinas más alejadas de la tabla.</li>
+                </ul>
+                <p><strong>Rango Óptimo Estándar:</strong></p>
+                <p>La cúpula matemática de DataLotto sitúa el rango perfecto entre <strong>12.0 y 18.0</strong>. Esto induce al generador a fabricar apuestas que emulan la verdadera distancia inercial del barajado mecánico.</p>
+            `;
+        } else if (titleText.includes('Geométricos') || filterGroup.querySelector('#geometricOptions')) {
+            matched = true;
+            title = "🗺️ Filtros Geométricos y Figuras";
+            body = `
+                <p><strong>¿Qué analizan los Filtros Geométricos?</strong></p>
+                <p>Inspeccionan si las marcas o cruces impresas sobre tu boleto físico forman patrones lineales, simetrías geométricas básicas o dibujos reconocibles en la libreta.</p>
+                <p><strong>Teoría de la Elección Humana y Compartición de Botes:</strong></p>
+                <p>Los humanos somos seres estructurados visualmente. Cuando rellenamos un boleto, tendemos de forma inconsciente a dibujar líneas rectas (horizontales o verticales), seguir las cuatro esquinas del papel, trazar cruces perfectas, aspas de avión o caminos diagonales.</p>
+                <p><strong>El Peligro del "Premio Compartido" (Efecto Dilución):</strong></p>
+                <p>Si sale ganadora una combinación que forma una hermosa y obvia figura simétrica en el boleto, no serás el único rico. Centenares de personas habrán impreso el mismo patrón geométrico, reduciendo tu premio millonario individual a unos pocos miles de euros por la división del pozo acumulado. Al activar <strong>🚫 Líneas</strong>, <strong>🚫 Diagonales o 🚫 Cruces</strong>, impides que se jueguen estas trampas estéticas, blindando el valor de tu bote.</p>
+            `;
+        } else if (titleText.includes('Suma Estrellas') || filterGroup.querySelector('#starSumMin')) {
+            matched = true;
+            title = "⭐ Suma de Estrellas";
+            body = `
+                <p><strong>¿Qué es la Suma de Estrellas?</strong></p>
+                <p>Suma los dígitos de los dos números secundarios elegidos en las Estrellas de Euromillones.</p>
+                <p><strong>Aplicación:</strong></p>
+                <p>Evita que juegues sumas extremas no deseadas (por ejemplo: 1+2=3 o 11+12=23 en Euromillones son sumas insólitamente raras en las estadísticas reales). El rango inteligente recomendado optimiza el espectro de suma entre 8 y 15 para alinearse con los registros frecuentes.</p>
+            `;
+        } else if (titleText.includes('Par/Impar Estrellas') || filterGroup.querySelector('#starParImparOptions')) {
+            matched = true;
+            title = "⭐ Par/Impar Estrellas";
+            body = `
+                <p><strong>Filtro de Par/Impar Estrellas:</strong></p>
+                <p>Regula la proporción de números pares e impares en el mini-bombo de Estrellas del sorteo.</p>
+                <p><strong>Estrategia ideal:</strong></p>
+                <p>Lo más común del comportamiento matemático es jugar de forma mixta: 1 estrella par y 1 estrella impar. Al activar esta restricción, evitas boletos de doble estrella impar o doble estrella par que ocurren con menor asiduidad en los sorteos europeos oficiales.</p>
+            `;
+        } else if (titleText.includes('Bajos/Altos Estrellas') || filterGroup.querySelector('#starBajosAltosOptions')) {
+            matched = true;
+            title = "⭐ Bajos/Altos Estrellas";
+            body = `
+                <p><strong>Filtro de Bajos/Altos Estrellas:</strong></p>
+                <p>Clasifica las estrellas en bajas (del 1 al 6) y altas (del 7 al 12).</p>
+                <p><strong>Estrategia ideal:</strong></p>
+                <p>La combinación mixta (1 estrella baja y 1 estrella alta) es la campeona absoluta de frecuencia. Al forzar este intervalo, garantizas que tus estrellas estén bien repartidas a lo largo de toda la dimensión del tablero auxiliar.</p>
+            `;
+        } else if (titleText.includes('Suma Dígitos Estrellas') || filterGroup.querySelector('#starSumaDigitosMin')) {
+            matched = true;
+            title = "⭐ Suma de Dígitos de Estrellas";
+            body = `
+                <p><strong>¿Qué calcula la Suma de Dígitos de Estrellas?</strong></p>
+                <p>Suma por separado el juego de cifras elementales de tus dos estrellas (por ejemplo, si tus estrellas son 5 y 12, sumaría: 5 + 1 + 2 = 8).</p>
+                <p>Esta medida permite filtrar con mayor sutileza la densidad probabilística de las estrellas para asegurar que mantengan una dispersión equilibrada.</p>
+            `;
+        } else if (titleText.includes('Primos Estrellas') || filterGroup.querySelector('#starPrimosMin')) {
+            matched = true;
+            title = "⭐ Primos Estrellas";
+            body = `
+                <p><strong>¿Qué son los Primos Estrellas?</strong></p>
+                <p>Controla cuántas de tus dos estrellas secundarias deben ser números primos (2, 3, 5, 7, 11).</p>
+                <p>La distribución uniforme ideal sugiere seleccionar entre 0 y 2 estrellas de rango primo, siendo ideal mantener una estrella prima y otra compuesta para un balance riguroso.</p>
+            `;
+        } else if (titleText.includes('Consecutivos Estrellas') || filterGroup.querySelector('#starConsecutivosOptions')) {
+            matched = true;
+            title = "⭐ Consecutivos Estrellas";
+            body = `
+                <p><strong>Filtro de Consecutivos en Estrellas:</strong></p>
+                <p>Determina si permites jugar estrellas consecutivas de forma seguidiza en el tablero secundario (ej: estrella 4 y 5).</p>
+                <p>Jugar de manera no consecutiva aporta mayor variabilidad probabilística al boleto.</p>
+            `;
+        } else if (titleText.includes('Distancia Estrellas') || filterGroup.querySelector('#starDistanciaMin')) {
+            matched = true;
+            title = "⭐ Distancia de Estrellas";
+            body = `
+                <p><strong>¿Qué es la Distancia de Estrellas?</strong></p>
+                <p>Mide la diferencia matemática absoluta entre las dos estrellas seleccionadas (ej: si juegas las estrellas 2 y 9, la distancia es 7).</p>
+                <p>Regula la dispersión de las estrellas secundarias en el boleto de Euromillones, evitando agrupamientos drásticos o separaciones imposibles.</p>
+            `;
+        } else if (titleText.includes('Predictivos') || filterGroup.querySelector('#useMarkovSwitch') || filterGroup.querySelector('#useNashSwitch') || filterGroup.querySelector('#useRegressionSwitch')) {
+            matched = true;
+            title = "🤖 Modelos Estadísticos y Filtros Predictivos Avanzados";
+            body = `
+                <p>Este módulo representa el cerebro predictivo de alto rendimiento de DataLotto, agrupando tres de las filosofías de toma de decisiones estocásticas de mayor prestigio mundial:</p>
+                
+                <p><strong>1. Cadenas de Markov y Probabilidades de Transición:</strong></p>
+                <p>Estudian transiciones secuenciales. El sistema analiza la base de datos completa e investiga qué número tiende a salir con mayor probabilidad como consecuencia del grupo de números extraídos en el sorteo inmediatamente anterior. Configurar "Sorteos a considerar" incrementa retrospectivamente el calado histórico evaluado.</p>
+              
+                <p><strong>2. Teoría de Juegos de John Nash (Equilibrio de Nash):</strong></p>
+                <p>Utilizada para predecir el comportamiento del resto del público. Analiza los sesgos estéticos humanos tradicionales (jugar fechas, patrones rectos, simetrías) y aplica un algoritmo teorético que penaliza combinaciones que el público juega a gran escala. El resultado es que, si aciertas el premio gordo, no tendrás que diluirlo ni compartirlo entre cientos de personas, maximizando tu Valor Esperado de Retorno (EV).</p>
+              
+                <p><strong>3. Regresión Lineal de Ajuste Mínimo-Cuadrado:</strong></p>
+                <p>Analiza el corrimiento y la inercia cíclica de la mediana del juego para estimar si la tendencia inmediata del sorteo en curso favorecerá números de mayor magnitud o menor magnitud. El Bono de Regresión prioriza combinaciones candidatas que naveguen a favor de esta corriente vectorial.</p>
+            `;
+        }
+
+        if (matched) {
+            const helpModalTitle = document.getElementById('helpModalTitle');
+            const helpModalBody = document.getElementById('helpModalBody');
+            if (helpModalTitle) helpModalTitle.textContent = title;
+            if (helpModalBody) helpModalBody.innerHTML = body;
+            this.toggleModal('helpModal', true);
+            return;
+        }
+    }
+
+    // 1. Selector de modo de selección
+    const modeBtn = target.closest<HTMLElement>('.selection-mode-btn');
+    if (modeBtn) {
+        const mode = modeBtn.dataset.mode;
+        const id = modeBtn.id;
+        if (mode === 'cold') {
+            title = "❄️ Números Fríos";
+            body = `
+                <p><strong>¿Qué son los Números Fríos?</strong></p>
+                <p>Son los dígitos que han aparecido con menor frecuencia en la base de datos de los últimos sorteos históricos analizados.</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>Su importancia radica en la <em>Teoría de Regresión a la Media</em> del cálculo probabilístico. Esta teoría postula que en sucesos independientes a largo plazo, todos los números del bombo deben equilibrar su frecuencia de salida. De este modo, los números fríos acumulan teóricamente una mayor presión de probabilidad latente para salir en los próximos sorteos.</p>
+                <p><strong>Cómo usarlos:</strong></p>
+                <p>Al activar este modo, la cuadrícula física se coloreará señalando los números fríos, facilitándote hacer clic para marcarlos obligatoriamente o dejárselos al algoritmo generador para que balancee la jugada.</p>
+            `;
+        } else if (mode === 'hot') {
+            title = "🔥 Números Calientes";
+            body = `
+                <p><strong>¿Qué son los Números Calientes?</strong></p>
+                <p>Son los números líderes en frecuencia que más veces han sido extraídos del bombo en el período analizado.</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>Se asocian con la <em>Teoría de Tendencia Intensa (Hot Hand)</em>. En lotería, debido a sutiles micro-imperfecciones en el peso o el diámetro de las bolas físicas, o por dinámicas de rachas de caos local, ciertos números muestran una predisposición estadística a seguir repitiéndose a corto plazo. Es una racha que los matemáticos llaman desviación de autocorrelación.</p>
+                <p><strong>Cómo usarlos:</strong></p>
+                <p>Te permite identificar los números "en racha" en la cuadrícula para integrarlos en tu apuesta combinada antes de que finalice su ciclo activo de alta probabilidad.</p>
+            `;
+        } else if (mode === 'absent') {
+            title = "⏱️ Números Ausentes";
+            body = `
+                <p><strong>¿Qué son los Números Ausentes?</strong></p>
+                <p>Son los números que llevan una mayor cantidad acumulada de sorteos sin salir (el mayor índice de "delay" u holgura temporal).</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>Consiste en identificar las llamadas <em>Ciclos de Saturación de Retraso</em>. Cuando un número supera de manera extrema la cantidad estándar esperada de sorteos sin salir, se aproxima a lo que los analistas denominan "punto crítico de quiebre". Introducir números ausentes selectivamente aumenta la robustez matemática de tu combinación.</p>
+                <p><strong>Cómo usarlos:</strong></p>
+                <p>Activa este modo para aislar en el tablero aquellos números con retraso extremo y seleccionarlos de manera prioritaria.</p>
+            `;
+        } else if (mode === 'favorites') {
+            title = "⭐ Modo Favoritos";
+            body = `
+                <p><strong>¿Qué es el Modo Favoritos?</strong></p>
+                <p>Es una ranura de personalización intuitiva que te permite reservar hasta un máximo de 10 números favoritos.</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>La lotería es una mezcla de ciencia matemática y factor emocional/azar. El Modo Favoritos introduce tus combinaciones, fechas de nacimiento o números de fuerza en el motor de renderizado de boletos. El generador inteligente utilizará estos números favoritos como tu base fija de juego y completará el boleto aplicando filtros avanzados sobre el resto de números para maximizar la calidad estadística sin arruinar tu intuición.</p>
+            `;
+        } else if (mode === 'excluded') {
+            title = "🚫 Números Excluidos";
+            body = `
+                <p><strong>¿Qué son los Números Excluidos?</strong></p>
+                <p>Son números que decides vetar o eliminar completamente de tus jugadas matemáticas.</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>Reduce radicalmente la dimensión espacial del problema de búsqueda. En una lotería 6/49 hay casi 14 millones de combinaciones. Al excluir solo 5 números que de antemano consideras improductivos o que descartas por mala racha, reduces las combinaciones posibles en varios millones, ayudando al motor a escudriñar un universo más concentrado de apuestas con mejores distribuciones de probabilidad.</p>
+            `;
+        } else if (mode === 'figure') {
+            title = "📐 Modo Figura Geométrica";
+            body = `
+                <p><strong>¿Qué es el Modo Figura Geométrica?</strong></p>
+                <p>Examina la distribución visual espacial de tus números sobre el boleto impreso físico.</p>
+                <p><strong>Teoría de Juego Aplicada:</strong></p>
+                <p>Estudios en psicología del juego revelan que miles de personas rellenan sus boletos dibujando figuras geométricas básicas (cruces, líneas rectas paralelas, letras, esquinas, espirales). Si estas figuras visuales resultan premiadas, el pozo se comparte entre miles de ganadores reduciendo significativamente tu premio. El sistema analiza y califica la estructura visual para evitar combinaciones obvias y proteger el valor de tus posibles ganancias.</p>
+            `;
+        } else if (id === 'dataBtn') {
+            title = "📂 Cargar Base de Datos de Sorteos";
+            body = `
+                <p><strong>¿Qué hace esta función?</strong></p>
+                <p>Te permite cargar un archivo de datos local (.csv, .db) conteniendo el histórico de resultados anteriores del juego seleccionado.</p>
+                <p><strong>Ventaja Estadística:</strong></p>
+                <p>Toda la analítica teórica (desviación, entropías, frecuencias calientes/frías) se actualiza de inmediato para sincronizarse con los datos del archivo provisto en el momento. Esto garantiza un aprendizaje y filtrado siempre preciso y fiel con la realidad actual del juego.</p>
+            `;
+        } else if (id === 'urlBtn') {
+            title = "🌐 Seleccionar URL de Base de Datos";
+            body = `
+                <p><strong>¿Qué hace este botón?</strong></p>
+                <p>Te permite elegir la ruta web o API oficial desde donde la aplicación descarga e inicializa los últimos resultados del sorteo.</p>
+                <p><strong>Ventaja Estadística:</strong></p>
+                <p>Evitara tener que importar de forma manual un archivo cada semana. El sistema se conectará a internet de forma transparente para tener siempre la base de datos histórica con los últimos sorteos oficiales computados.</p>
+            `;
+        } else if (id === 'simulateBtn') {
+            title = "🧬 Simulador por Generador Monte Carlo";
+            body = `
+                <p><strong>¿Qué es la Simulación de Datos?</strong></p>
+                <p>Inyecta un juego masivo de resultados simulados matemáticamente (ej. 500 sorteos virtuales creados con algoritmos de distribución probabilística clásica).</p>
+                <p><strong>Aplicación:</strong></p>
+                <p>Sirve para probar a fondo todos los filtros avanzados del generador, ensayar estrategias, verificar el comportamiento del backtesting en escenarios diversos e interactuar con la interfaz científica sin límites de red.</p>
+            `;
+        } else if (id === 'randomBtn') {
+            title = "🎲 Selección de Números al Azar";
+            body = `
+                <p><strong>¿Qué es la Selección al Azar de DataLotto?</strong></p>
+                <p>Elige una serie de números aleatorios puros iniciales que respetan el diseño de la cuadrícula.</p>
+                <p><strong>Aplicación:</strong></p>
+                <p>Es un excelente punto inicial de juego. Al azar puro, puedes superponerle luego tus estrategias personalizadas de filtrado de campana de Gauss, Markov, Nash o descartes de números excluidos para transformar una jugada de azar simple en una apuesta técnica optimizada.</p>
+            `;
+        } else if (id === 'clearBtn') {
+            title = "🗑️ Limpiar Todo";
+            body = `
+                <p><strong>¿Qué hace esta acción?</strong></p>
+                <p>Vuelve a su estado neutral a la grilla y borra las selecciones actuales de números calientes, ausentes, fríos, favoritos y excluidos de un plumazo.</p>
+                <p><strong>Aplicación:</strong></p>
+                <p>Perfecto para empezar una estrategia de diseño nueva libre de residuos o herencias de juegos anteriores.</p>
+            `;
+        }
+    }
+
+    // 2. Botones de acción del boleto
+    else if (target.closest('#generateBtn') || target.id === 'generateBtn') {
+        title = "⚙️ Filtro Generador Inteligente";
+        body = `
+            <p><strong>¿Cómo funciona el Generador?</strong></p>
+            <p>A diferencia de una simple máquina que te da números al azar, el motor de DataLotto evalúa miles de combinaciones posibles por segundo en tu navegador mediante fuerza bruta inteligente guiada por restricciones.</p>
+            <p><strong>Criterio de Aceptación:</strong></p>
+            <p>Cada combinación candidata es evaluada contra <strong>TODOS</strong> los filtros que hayas configurado en el panel. Solo si una combinación supera de manera óptima las restricciones de Entropía, Suma de números, Cantidad de primos, Cadenas de Markov y Desviación, es finalmente renderizada como boleto. Esto asegura que juegues exclusivamente boletos de máxima probabilidad matemática acumulada.</p>
+        `;
+    } else if (target.closest('#saveBtn') || target.id === 'saveBtn') {
+        title = "💾 Guardar Boleto";
+        body = `
+            <p><strong>¿Qué hace este botón?</strong></p>
+            <p>Almacena la combinación seleccionada o generada en la base de datos de tu navegador de forma segura (LocalStorage local).</p>
+            <p><strong>Para qué utilizarlo:</strong></p>
+            <p>Te permite hacer un seguimiento analítico. Tus apuestas guardadas se consolidarán en la sección de estadísticas históricas y backtesting para calcular tu porcentaje de éxito real con el paso del tiempo.</p>
+        `;
+    } else if (target.closest('#shareBtn') || target.id === 'shareBtn') {
+        title = "📤 Compartir Combinación";
+        body = `
+            <p><strong>¿Qué hace este botón?</strong></p>
+            <p>Genera una versión en texto estructurado de la jugada lista para copiar al portapapeles y compartirla rápido por WhatsApp o chat, facilitando el juego conjunto o peñas.</p>
+        `;
+    } else if (target.closest('#playOnlineBtn') || target.id === 'playOnlineBtn') {
+        title = "📲 Jugar Online Registrado";
+        body = `
+            <p><strong>¿Qué hace esta acción?</strong></p>
+            <p>Te redirige a la plataforma de apuestas en línea oficial del operador de lotería, autotransfiriendo (siempre que el juego u operador lo permita) los números de tu boleto inteligente para que los registres con un clic sin posibilidad de equivocaciones humanas de transcripción.</p>
+        `;
+    }
+
+    // 3. Filtros del panel (identificados por ID/clase de inputs o cabeceras)
+    else if (target.closest('#entropyTerminacionesMin') || target.closest('#entropyTerminacionesMax') || target.closest('label[for*="entropyTerminaciones"]') || (target.innerText && target.innerText.includes('Entropía de Terminaciones'))) {
+        title = "📊 Entropía de Terminaciones";
+        body = `
+            <p><strong>¿Qué mide la Entropía de Terminaciones?</strong></p>
+            <p>La entropía matemática es una medida de desorden o información. Este filtro evalúa la composición de los <strong>últimos dígitos</strong> (las terminaciones) de los números de tu boleto.</p>
+            <p><strong>Teoría de Juego Aplicada:</strong></p>
+            <p>Si eliges números como 2, 12, 22, 32, 42, todos terminan en '2'. La entropía de terminaciones de esta jugada es extremadamente baja (poca información, patrón plano). Los sorteos históricos de lotería demuestran que las combinaciones ganadoras contienen terminaciones muy variadas (ej. 3, 14, 21, 28, 35, 49 con terminaciones 3, 4, 1, 8, 5, 9). Al fijar el rango recomendado (ej. de 1.000 a 2.585), descartas apuestas simplistas que jamás suceden en sorteos reales.</p>
+        `;
+    } else if (target.closest('#sumMin') || target.closest('#sumMax') || (target.innerText && target.innerText.includes('Suma de Números'))) {
+        title = "➕ Rango de Suma de Números";
+        body = `
+            <p><strong>¿Qué es el Rango de Suma?</strong></p>
+            <p>Es la suma directa aritmética de todos los números que forman el boleto.</p>
+            <p><strong>Teoría de Juego Aplicada:</strong></p>
+            <p>Se asienta en el principio probabilístico de la <strong>Campana de Gauss</strong> (La Distribución Normal). Aunque cualquier combinación individual tiene exactamente la misma probabilidad teórica de salir, la sumatoria de las combinaciones agrupadas se concentra de forma abrumadora en una franja media.</p>
+            <p>Por ejemplo, en una lotería 6/49 la menor suma posible es 21 (1+2+3+4+5+6) y la máxima es 279 (44+45+46+47+48+49). La inmensa mayoría de los sorteos reales registran sumas que caen de forma estricta entre 121 y 190. Configurar este rango garantiza que nunca juegues combinaciones extremas que representen un desperdicio probabilístico de tu dinero.</p>
+        `;
+    } else if (target.closest('#primosMin') || target.closest('#primosMax') || (target.innerText && target.innerText.includes('Cantidad de Primos'))) {
+        title = "🔢 Números Primos en el Boleto";
+        body = `
+            <p><strong>¿Qué analiza la Cantidad de Primos?</strong></p>
+            <p>Controla cuántos de los números en tu combinación deben ser primos (números que solo se pueden dividir de forma exacta por el 1 y por sí mismos, como el 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, etc.).</p>
+            <p><strong>Estudio Estadístico:</strong></p>
+            <p>El comportamiento histórico indica que es sumamente raro que un sorteo contenga 0 números primos, o bien que los 6 números sean primos. En más del 80% de los sorteos reales, el boleto ganador se compone de <strong>entre 1 y 3 números primos</strong>. Este filtro descarta boletos desequilibrados numéricamente para ajustarse al comportamiento predilecto de la probabilidad natural de los bombos de lotería.</p>
+        `;
+    } else if (target.closest('#entropyIntervalosMin') || target.closest('#entropyIntervalosMax') || (target.innerText && target.innerText.includes('Entropía de Intervalos'))) {
+        title = "🌌 Entropía de Intervalos de Separación";
+        body = `
+            <p><strong>¿Qué es la Entropía de Intervalos?</strong></p>
+            <p>Mide la regularidad o el desorden de los saltos numéricos que hay entre cada uno de los números ordenados consecutivos de la combinación.</p>
+            <p><strong>Importancia:</strong></p>
+            <p>Previene contra la acumulación repetitiva de ciertas diferencias geométricas o secuencias demasiado estables (ejemplo: 5, 10, 15, 20, 25, 30, donde los intervalos son todos exactamente de 5). El sistema descarta estas combinaciones estériles asegurando un desorden saludable similar a las dinámicas complejas del movimiento de las bolas en los sorteos reales.</p>
+        `;
+    } else if (target.closest('#distanciaMin') || target.closest('#distanciaMax') || (target.innerText && target.innerText.includes('Distancia Mínima y Máxima'))) {
+        title = "📏 Distancia entre Elementos";
+        body = `
+            <p><strong>¿A qué se refiere este filtro?</strong></p>
+            <p>A la separación (diferencia matemática) entre los números contiguos más cercanos del boleto agrupados y ordenados.</p>
+            <p><strong>Aplicación:</strong></p>
+            <p>Por ejemplo, si la combinación es [12, 14, 25, 27, 39, 41], la distancia mínima es de 2 (entre 12 y 14, y 25 y 27). Este filtro evita que el generador escoja secuencias absurdas donde todos los números están apretados con diferencias de 1 (ejemplo: 12, 13, 14, 15, 16, 17) o con saltos demasiado distanciados que impidan la naturalidad de dispersión.</p>
+        `;
+    } else if (target.closest('#sumaDigitosMin') || target.closest('#sumaDigitosMax') || (target.innerText && target.innerText.includes('Suma de Todos los Dígitos'))) {
+        title = "🧮 Suma de Todos los Dígitos";
+        body = `
+            <p><strong>¿Qué calcula la Suma de Dígitos?</strong></p>
+            <p>Suma cada una de las cifras o letras numéricas individuales que forman el boleto de manera separada.</p>
+            <p><strong>Ejemplo:</strong></p>
+            <p>Si los números del boleto son [10, 25, 36], el filtro desglosará la jugada entera en cifras matemáticas individuales y sumará: 1 + 0 + 2 + 5 + 3 + 6 = 17. Al igual que el rango de suma estándar del juego completo, este indicador acumulado de geometría digital se distribuye en una curva de alta probabilidad que el generador utiliza para calibrar apuestas con excelente factor de simetría espacial.</p>
+        `;
+    } else if (target.closest('#desviacionMin') || target.closest('#desviacionMax') || (target.innerText && target.innerText.includes('Desviación Estándar de la Combinación'))) {
+        title = "📉 Desviación Estándar de la Combinación";
+        body = `
+            <p><strong>¿Qué es la Desviación Estándar?</strong></p>
+            <p>Es una métrica clásica de la estadística analítica corporativa que define qué tan dispersos se encuentran los números de una muestra respecto de su valor medio o promedio.</p>
+            <p><strong>Teoría de Juego Aplicada:</strong></p>
+            <p>Una desviación estándar muy baja (ej. menor a 5.0) significa que todos tus números están densamente aglutinados en un solo sector de la cuadrícula (ejemplo: 18, 19, 21, 22, 23, 25). Una desviación estándar excesivamente alta (ej. mayor a 21.0) significa que los números están solo en las fronteras físicas más distantes (como 1, 2, 47, 48, 49). Configurar rangos equilibrados (como el por defecto, de 12.0 a 18.0) garantiza boletos homogéneos que barren eficientemente toda la cuadrícula.</p>
+        `;
+    }
+
+    // 4. Estrategias avanzadas: Markov, Nash, Regresión lineal
+    else if (target.closest('#useMarkovSwitch') || target.closest('#markovDepth') || (target.innerText && target.innerText.includes('Markov'))) {
+        title = "⛓️ Cadena de Markov y Transiciones";
+        body = `
+            <p><strong>¿Qué es el Filtro de Cadenas de Markov?</strong></p>
+            <p>Las cadenas de Markov son un modelo matemático que estudia la probabilidad de que ocurra un evento futuro basándose estrictamente en el estado actual de los eventos anteriores.</p>
+            <p><strong>Teoría de Juego de Loterías:</strong></p>
+            <p>El sistema estudia el histórico de sorteos completo. Calcula una matriz gigante de transiciones estadísticas que responde a la pregunta de: <em>Si en un sorteo dado sale el número X, ¿qué probabilidad hay en el siguiente sorteo de que salga el número Y?</em>.</p>
+            <p><strong>Profundidad de Markov:</strong></p>
+            <p>Fijar una mayor profundidad hace que el sistema busque patrones y secuencias cíclicas retrospectivas a lo largo de más sorteos previos encadenados en vez de limitarse al último sorteo. El generador utilizará esta información descartando combinaciones poco probables bajo la teoría de transición encadenada.</p>
+        `;
+    } else if (target.closest('#useNashSwitch') || target.closest('#nashWeight') || (target.innerText && target.innerText.includes('Equilibrio de Nash'))) {
+        title = "⚖️ Equilibrio de Nash y Teoría de Juegos";
+        body = `
+            <p><strong>¿Qué es el Equilibrio de Nash en Lotería?</strong></p>
+            <p>El Equilibrio de Nash es un concepto fundamental en la <em>Teoría de Juegos</em> desarrollado por el premio Nobel John Nash. Modela la interacción entre múltiples agentes racionales independientes.</p>
+            <p><strong>¿Cómo se aplica a tus ganancias?</strong></p>
+            <p>La lotería no es solo ganarle a la máquina; es también competir contra otros humanos. Si ganas empleando números hiper-populares como cumpleaños tradicionales (del 1 al 31) u ordenaciones redundantes, tendrás que repartir el bote de premios entre cientos de personas ganando una fracción insignificante. El Equilibrio de Nash busca una posición óptima que maximiza tu <strong>Valor Esperado de Retorno (EV)</strong> si aciertas.</p>
+        `;
+    } else if (target.closest('#useRegressionSwitch') || target.closest('#regressionBonus') || (target.innerText && target.innerText.includes('Regresión Lineal'))) {
+        title = "📈 Regresión Lineal y Tendencia Histórica";
+        body = `
+            <p><strong>¿Qué hace la Regresión Lineal?</strong></p>
+            <p>Es un modelo de análisis predictivo clásico en estadística e inteligencia de negocios. Traza una línea matemática recta ajustada óptimamente entre una nube de puntos retrospectivos históricos de sorteos pasados.</p>
+            <p><strong>Aplicación:</strong></p>
+            <p>El sistema proyecta sobre la recta de tiempo el comportamiento ondulatorio de los números, evaluando si el promedio de la combinación ganadora tiende de manera general hacia números más altos o más bajos en los sorteos vigentes. Al asignarle un peso de <strong>Bono de Regresión</strong>, se incentiva la generación de boletos que se ajusten y acompañen este vector de tendencia calculado continuamente.</p>
+        `;
+    }
+
+    // 5. Inteligencia Artificial / Preajustes / Backtesting / Base de datos / Dashboard
+    else if (target.closest('#aiFiltersBtn') || target.closest('#aiPredictBtn') || (target.innerText && (target.innerText.includes('Filtros IA') || target.innerText.includes('Gemini')))) {
+        title = "🧠 Predicción con Inteligencia Artificial (Gemini)";
+        body = `
+            <p><strong>¿En qué consiste el Asistente IA de DataLotto?</strong></p>
+            <p>Enlaza la aplicación con modelos avanzados de procesamiento de lenguaje natural y análisis predictivo de Google Gemini mediante API server-side.</p>
+            <p><strong>¿Qué hace de manera autónoma?</strong></p>
+            <p>La IA lee el historial completo del juego, examina la distribución caótica de los números ganadores e identifica micro-desviaciones ocultas para el ojo humano. Con estos datos, calcula de forma personalizada una sugerencia optimizada para los controles de este panel (ejemplo: adaptando los límites ideales de entropía o primos específicos para el próximo sorteo en curso), asistiéndote en el diseño de tu estrategia matemática.</p>
+        `;
+    } else if (target.closest('#saveFiltersBtn')) {
+        title = "💾 Guardar Plantilla de Filtros";
+        body = `
+            <p>Permite congelar permanentemente tu combinación actual de sliders y límites estadísticos asignándoles un nombre identificativo para volver a usarlos cómodamente en cualquier instante.</p>
+        `;
+    } else if (target.closest('#loadFiltersBtn')) {
+        title = "📂 Cargar Plantillas de Filtros";
+        body = `
+            <p>Accede directamente a tu colección exclusiva de estrategias y configuraciones previas guardadas.</p>
+        `;
+    } else if (target.closest('#filtersDashboardBtn')) {
+        title = "📊 Filtros de Juego";
+        body = `
+            <p>Abre el completo centro de operaciones donde se encuentran los controles avanzados matemáticos. Aquí es donde ajustas cada una de las restricciones que debe satisfacer el generador de boletos.</p>
+        `;
+    } else if (target.closest('#disclaimerBtn')) {
+        title = "⚠️ Descargo de Responsabilidad Ético";
+        body = `
+            <p>Recuerda siempre jugar con responsabilidad. Las loterías son juegos basados fundamentalmente en el azar y la aleatoriedad matemática. Ningún software en el mundo, por avanzado que sea, puede garantizar un premio seguro del 100% en sorteos ideales.</p>
+            <p>DataLotto49 es una herramienta de asistencia científica que maximiza tus probabilidades reduciendo desperdicios matemáticos, pero recuerda definir siempre límites moderados y divertirte jugando.</p>
+        `;
+    } else if (target.closest('#runBacktestBtn') || target.closest('.collapsible-header[data-target="backtesting"]')) {
+        title = "🧪 Módulo de Backtesting Retrospectivo";
+        body = `
+            <p><strong>¿Qué es el Backtesting?</strong></p>
+            <p>Es el estándar de oro utilizado por físicos y analistas de apuestas deportivas de alto nivel para ratificar teorías cuantitativas.</p>
+            <p><strong>¿Cómo valida tu estrategia?</strong></p>
+            <p>Ejecuta una simulación retrospectiva histórica en base a sorteos de la vida real. Es decir, el simulador retrocederá de forma virtual 50, 100 o 500 sorteos reales pasados, aplicará fielmente tu actual configuración de filtros matemáticos para "generar" las apuestas sugeridas que habrías realizado en su momento, y luego las cruzará contra las bolas de la loto ganadoras reales que cayeron en ese momento.</p>
+            <p>El reporte te mostrará de forma pormenorizada cuántos premios de 3, 4, 5 o 6 aciertos habrías obtenido, dándote la confirmación definitiva de la eficacia de tu estrategia de filtrado antes de poner en juego dinero de verdad.</p>
+        `;
+    } else if (target.closest('.db-tab')) {
+        title = "🗄️ Pestañas de Análisis de Datos Integrados";
+        body = `
+            <p><strong>¿Qué muestran estos paneles?</strong></p>
+            <p>Permite navegar entre diferentes módulos y vistas estadísticas del juego cargado:</p>
+            <ul>
+                <li><strong>Análisis Básico</strong>: Gráficos simples de frecuencia (números más repetidos), porcentajes de salida y ranking de apariciones simples directos.</li>
+                <li><strong>Análisis Avanzado</strong>: Desglose de retrasos actuales de números, matriz de correlaciones de salida múltiple, comportamiento por décadas estadístico e intervalos de holgura.</li>
+                <li><strong>Patrones Especiales</strong>: Histórico de apariciones de números pares vs impares, dispersión de sumas y simetrías espaciales complejas.</li>
+                <li><strong>Estrategias</strong>: Recomendaciones científicas preestablecidas ajustadas individualmente para el tipo de sorteo seleccionado vigentes en el momento.</li>
+            </ul>
+        `;
+    } else if (target.closest('.number-ball')) {
+        const num = target.innerText.trim();
+        title = `🎯 Bola de Número ${num}`;
+        body = `
+            <p><strong>¿Qué pasa al hacer clic en este número?</strong></p>
+            <p>Has pulsado sobre el número <strong>${num}</strong> en la parrilla física táctil.</p>
+            <p><strong>Acción directa:</strong></p>
+            <p>Dependiendo del Modo de Selección en el que te encuentres, al pulsar esta bola podrás:</p>
+            <ul>
+                <li>Añadirla a tus <strong>Favoritos</strong> (para que salga obligatoriamente en tu jugada).</li>
+                <li>Añadirla a tus <strong>Excluidos</strong> (para vetarla y que el algoritmo nunca la genere).</li>
+                <li>Apreciar su coloración fría (azul), caliente (rojo) o ausente (gris/amarillo) para tomar decisiones informadas antes de fabricar tu boleto estadístico óptimo.</li>
+            </ul>
+        `;
+    }
+
+    // Actualizar título y contenido del helpModal
+    const helpModalTitle = document.getElementById('helpModalTitle');
+    const helpModalBody = document.getElementById('helpModalBody');
+    if (helpModalTitle) helpModalTitle.textContent = title;
+    if (helpModalBody) helpModalBody.innerHTML = body;
+
+    // Mostrar modal
+    this.toggleModal('helpModal', true);
   }
 
   runSelfDiagnostics() {
@@ -270,12 +958,14 @@ class DataLotto49Advanced {
 
     // Test 3: Math filters check
     try {
-        const testCombo = [1, 2, 3, 4, 5, 6];
+        const maxNums = this.currentGame.maxNumbers;
+        const testCombo = Array.from({ length: maxNums }, (_, i) => i + 1);
+        const expectedSum = (maxNums * (maxNums + 1)) / 2;
         const stats = this.getCombinationStats(testCombo);
-        if (stats && stats.suma === 21) {
+        if (stats && stats.suma === expectedSum) {
             diagResults.push({ name: 'Motor Matemático Interno', status: 'PASS', msg: 'Estadísticas y ecuaciones probabilísticas estables' });
         } else {
-            diagResults.push({ name: 'Motor Matemático Interno', status: 'FAIL', msg: 'La suma no coincide con el cálculo del motor' });
+            diagResults.push({ name: 'Motor Matemático Interno', status: 'FAIL', msg: `La suma calculada (${stats.suma || 0}) no coincide con el valor esperado (${expectedSum})` });
         }
     } catch (mathErr: any) {
         diagResults.push({ name: 'Motor Matemático Interno', status: 'FAIL', msg: `Fallo de cálculo matemático: ${mathErr.message}` });
@@ -832,6 +1522,63 @@ class DataLotto49Advanced {
       const maxStars = game.maxStars;
       const starRange = game.starRange;
 
+      if (gameId === 'nacional') {
+          return {
+              terminaciones: [],
+              terminacionesDistintas: [],
+              sum: { min: 0, max: 99999 },
+              parImpar: [],
+              bajosAltos: [],
+              primos: { min: 0, max: 5 },
+              consecutivos: [],
+              distancia: { min: 0, max: 99999 },
+              agrupDecenas: [],
+              sumaDigitos: { min: 0, max: 45 },
+              desviacion: { min: 0, max: 20 },
+              entropyTerminaciones: { min: 0, max: 5 },
+              entropyIntervalos: { min: 0, max: 5 },
+              geometric: { exclude: [], favor: [] },
+              starSum: { min: 0, max: 0 },
+              starParImpar: [],
+              starBajosAltos: [],
+              starSumaDigitos: { min: 0, max: 0 },
+              starPrimos: { min: 0, max: 0 },
+              starConsecutivos: [],
+              starDistancia: { min: 0, max: 0 },
+              useMarkov: false,
+              useNash: false,
+              useRegression: false,
+              ai: {
+                  markovDepth: 5,
+                  nashWeight: 1,
+                  regressionBonus: 3
+              },
+              // Lotería Nacional specific defaults
+              nacionalSumaDigitos: { min: 15, max: 30 },
+              nacionalCapicua: 'all',
+              nacionalPrimo: 'all',
+              nacionalCuadradoCubo: 'all',
+              nacionalRepdigits: 'all',
+              nacionalMultiploDe: 1,
+              nacionalFranja: { min: 0, max: 99999 },
+              nacionalObjetivo: '00000',
+              nacionalDistanciaObjetivo: { min: 0, max: 99999 },
+              nacionalParidad: ['any', 'any', 'any', 'any', 'any'],
+              nacionalAltoBajo: ['any', 'any', 'any', 'any', 'any'],
+              nacionalConsecutivos: 'all',
+              nacionalSumaMitades: 'all',
+              nacionalParesConteo: ['5P/0I', '4P/1I', '3P/2I', '2P/3I', '1P/4I', '0P/5I'],
+              nacionalAltosConteo: ['5A/0B', '4A/1B', '3A/2B', '2A/3B', '1A/4B', '0A/5B'],
+              nacionalUnicos: [1, 2, 3, 4, 5],
+              nacionalModaRepeticiones: { min: 1, max: 5 },
+              nacionalCeros: ['0', '1', '2', '3+'],
+              nacionalPrimosDigitos: { min: 0, max: 5 },
+              nacionalRangoInterno: { min: 0, max: 9 },
+              nacionalDesviacion: { min: 0.00, max: 4.50 },
+              nacionalEntropiaDigitos: { min: 0.000, max: 2.322 }
+          };
+      }
+
       // Default number ranges
       let sumMin = 0; for(let i=1; i<=maxNumbers; i++) sumMin += i;
       let sumMax = 0; for(let i=0; i<maxNumbers; i++) sumMax += (numberRange - i);
@@ -881,9 +1628,11 @@ class DataLotto49Advanced {
           this.gameFilters[this.currentGame.id] = this.filters;
 
           const state = {
+              currentGameId: this.currentGame.id,
               savedTickets: this.savedTickets,
               gameFilters: this.gameFilters, // Save all game filters
-              historicalData: this.historicalData,
+              historicalData: this.allHistoricalData.length > 0 ? this.allHistoricalData : this.historicalData,
+              nacionalDrawFilter: this.nacionalDrawFilter,
               dataType: this.dataType,
               dataLoaded: this.dataLoaded,
               favoriteNumbers: Array.from(this.favoriteNumbers), // Persist favorites
@@ -1161,6 +1910,9 @@ class DataLotto49Advanced {
           const savedStateJSON = localStorage.getItem(DataLotto49Advanced.APP_STATE_KEY);
           if (savedStateJSON) {
               const savedState = JSON.parse(savedStateJSON);
+              if (savedState.currentGameId && GAMES[savedState.currentGameId]) {
+                  this.currentGame = GAMES[savedState.currentGameId];
+              }
               this.savedTickets = savedState.savedTickets || [];
               // Migrate any old saved tickets gameId from 'lotto649' or missing to 'bonoloto'
               this.savedTickets.forEach((t: any) => {
@@ -1199,6 +1951,8 @@ class DataLotto49Advanced {
                 this.filters.ai = { markovDepth: 5, nashWeight: 1, regressionBonus: 3 };
               }
               this.historicalData = (savedState.historicalData || []).map((d: any) => ({...d, date: new Date(d.date)}));
+              this.allHistoricalData = [...this.historicalData];
+              this.nacionalDrawFilter = savedState.nacionalDrawFilter || 'all';
               this.dataType = savedState.dataType || 'none';
               this.dataLoaded = savedState.dataLoaded || false;
               this.favoriteNumbers = new Set(savedState.favoriteNumbers || []);
@@ -1312,6 +2066,59 @@ class DataLotto49Advanced {
     setChecked('useMarkovSwitch', this.filters.useMarkov);
     setChecked('useNashSwitch', this.filters.useNash);
     setChecked('useRegressionSwitch', this.filters.useRegression);
+
+    if (this.currentGame.id === 'nacional') {
+      // Inputs and select elements
+      setVal('nacionalSumaDigitosMin', this.filters.nacionalSumaDigitos?.min ?? 15);
+      setVal('nacionalSumaDigitosMax', this.filters.nacionalSumaDigitos?.max ?? 30);
+      
+      const setSelectVal = (id: string, val: string | undefined) => {
+        const el = document.getElementById(id) as HTMLSelectElement;
+        if (el && val !== undefined) el.value = val;
+      };
+      setSelectVal('nacionalCapicua', this.filters.nacionalCapicua);
+      setSelectVal('nacionalPrimo', this.filters.nacionalPrimo);
+      setSelectVal('nacionalCuadradoCubo', this.filters.nacionalCuadradoCubo);
+      setSelectVal('nacionalRepdigits', this.filters.nacionalRepdigits);
+      setVal('nacionalMultiploDe', this.filters.nacionalMultiploDe ?? 1);
+      setVal('nacionalFranjaMin', this.filters.nacionalFranja?.min ?? 0);
+      setVal('nacionalFranjaMax', this.filters.nacionalFranja?.max ?? 99999);
+      
+      setVal('nacionalObjetivo', this.filters.nacionalObjetivo ?? '00000');
+      setVal('nacionalDistanciaObjetivoMin', this.filters.nacionalDistanciaObjetivo?.min ?? 0);
+      setVal('nacionalDistanciaObjetivoMax', this.filters.nacionalDistanciaObjetivo?.max ?? 99999);
+      
+      // Position selects (D1-D5)
+      for (let i = 1; i <= 5; i++) {
+        setSelectVal(`nacionalParidadD${i}`, this.filters.nacionalParidad?.[i - 1]);
+        setSelectVal(`nacionalAltoBajoD${i}`, this.filters.nacionalAltoBajo?.[i - 1]);
+      }
+      
+      setSelectVal('nacionalConsecutivos', this.filters.nacionalConsecutivos);
+      setSelectVal('nacionalSumaMitades', this.filters.nacionalSumaMitades);
+      
+      // Chips (Multi-select)
+      updateChips('#nacionalParesConteoOptions .filter-chip', this.filters.nacionalParesConteo ?? []);
+      updateChips('#nacionalAltosConteoOptions .filter-chip', this.filters.nacionalAltosConteo ?? []);
+      updateChips('#nacionalUnicosOptions .filter-chip', this.filters.nacionalUnicos ?? []);
+      
+      setVal('nacionalModaRepeticionesMin', this.filters.nacionalModaRepeticiones?.min ?? 1);
+      setVal('nacionalModaRepeticionesMax', this.filters.nacionalModaRepeticiones?.max ?? 5);
+      
+      updateChips('#nacionalCerosOptions .filter-chip', this.filters.nacionalCeros ?? []);
+      
+      setVal('nacionalPrimosDigitosMin', this.filters.nacionalPrimosDigitos?.min ?? 0);
+      setVal('nacionalPrimosDigitosMax', this.filters.nacionalPrimosDigitos?.max ?? 5);
+      
+      setVal('nacionalRangoInternoMin', this.filters.nacionalRangoInterno?.min ?? 0);
+      setVal('nacionalRangoInternoMax', this.filters.nacionalRangoInterno?.max ?? 9);
+      
+      setVal('nacionalDesviacionMin', this.filters.nacionalDesviacion?.min ?? 0.00);
+      setVal('nacionalDesviacionMax', this.filters.nacionalDesviacion?.max ?? 4.50);
+      
+      setVal('nacionalEntropiaDigitosMin', this.filters.nacionalEntropiaDigitos?.min ?? 0.000);
+      setVal('nacionalEntropiaDigitosMax', this.filters.nacionalEntropiaDigitos?.max ?? 2.322);
+    }
   }
 
   // ===== DATOS HISTÓRICOS (Sin cambios) =====
@@ -1333,7 +2140,7 @@ class DataLotto49Advanced {
       this.historicalData.push({
         id: i + 1,
         date: drawDate,
-        numbers: numbers.sort((a, b) => a - b),
+        numbers: this.currentGame.id === 'nacional' ? numbers : numbers.sort((a, b) => a - b),
         stars: stars ? stars.sort((a, b) => a - b) : undefined,
         complementario: complementario,
         reintegro: reintegro,
@@ -1352,6 +2159,15 @@ class DataLotto49Advanced {
     this.hideFilterSpinner();
   }
   generateRealisticDraw(): { numbers: number[], stars?: number[], complementario?: number, reintegro?: number } {
+    if (this.currentGame.id === 'nacional') {
+      const numbers: number[] = [];
+      for (let col = 0; col < 5; col++) {
+        const val = Math.floor(Math.random() * 10);
+        numbers.push((col + 1) * 10 + val);
+      }
+      return { numbers };
+    }
+
     const numbers = new Set<number>();
     while(numbers.size < this.currentGame.maxNumbers) {
         const num = Math.floor(Math.random() * this.currentGame.numberRange) + 1;
@@ -1453,6 +2269,10 @@ class DataLotto49Advanced {
         GAMES_LIST = [
             { id: 'gordo', name: 'El Gordo', flag: '🏆' }
         ];
+    } else if (this.currentGame.id === 'nacional') {
+        GAMES_LIST = [
+            { id: 'nacional', name: 'Lotería Nacional', flag: '🇪🇸' }
+        ];
     }
 
     // Sort: Favorites first, then keep requested order
@@ -1508,7 +2328,8 @@ class DataLotto49Advanced {
         { id: 'primitiva', name: 'Primitiva España', flag: '🇪🇸' },
         { id: 'gordo', name: 'El Gordo', flag: '🏆' },
         { id: 'euromillones', name: 'Euromillones', flag: '🇪🇺' },
-        { id: 'eurodreams', name: 'EuroDreams', flag: '🌙' }
+        { id: 'eurodreams', name: 'EuroDreams', flag: '🌙' },
+        { id: 'nacional', name: 'Lotería Nacional', flag: '🇪🇸' }
     ];
 
     const sortedGames = [...GAMES_LIST].sort((a, b) => {
@@ -1558,7 +2379,7 @@ class DataLotto49Advanced {
     const sidebarUL = document.querySelector('#sidebar .sidebar-links');
     if (!sidebarUL) return;
 
-    const gameIds = ['bonoloto', 'primitiva', 'gordo', 'euromillones', 'eurodreams'];
+    const gameIds = ['bonoloto', 'primitiva', 'gordo', 'euromillones', 'eurodreams', 'nacional'];
     const gameElements: { [key: string]: HTMLElement } = {};
     
     gameIds.forEach(id => {
@@ -1592,7 +2413,7 @@ class DataLotto49Advanced {
     });
   }
 
-  generateSyntheticCSV(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo'): string {
+  generateSyntheticCSV(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo' | 'nacional'): string {
     const game = GAMES[gameKey];
     const maxNumbers = game.maxNumbers;
     const maxStars = game.maxStars || 0;
@@ -1617,21 +2438,30 @@ class DataLotto49Advanced {
       
       // Combinación de números aleatoria sin repetición
       const nums: number[] = [];
-      const numPool = Array.from({ length: numberRange }, (_, idx) => idx + 1);
-      for (let n = 0; n < maxNumbers; n++) {
-        const idx = Math.floor(Math.random() * numPool.length);
-        nums.push(numPool.splice(idx, 1)[0]);
+      if (gameKey === 'nacional') {
+        for (let col = 0; col < 5; col++) {
+          const val = Math.floor(Math.random() * 10);
+          nums.push((col + 1) * 10 + val);
+        }
+      } else {
+        const numPool = Array.from({ length: numberRange }, (_, idx) => idx + 1);
+        for (let n = 0; n < maxNumbers; n++) {
+          const idx = Math.floor(Math.random() * numPool.length);
+          nums.push(numPool.splice(idx, 1)[0]);
+        }
+        nums.sort((a, b) => a - b);
       }
-      nums.sort((a, b) => a - b);
       
       // Combinación de estrellas aleatoria sin repetición
       const stars: number[] = [];
-      const starPool = Array.from({ length: starRange }, (_, idx) => idx + 1);
-      for (let s = 0; s < maxStars; s++) {
-        const idx = Math.floor(Math.random() * starPool.length);
-        stars.push(starPool.splice(idx, 1)[0]);
+      if (gameKey !== 'nacional') {
+        const starPool = Array.from({ length: starRange }, (_, idx) => idx + 1);
+        for (let s = 0; s < maxStars; s++) {
+          const idx = Math.floor(Math.random() * starPool.length);
+          stars.push(starPool.splice(idx, 1)[0]);
+        }
+        stars.sort((a, b) => a - b);
       }
-      stars.sort((a, b) => a - b);
       
       let row = dateStr + ',' + nums.join(',');
       if (stars.length > 0) {
@@ -1642,20 +2472,24 @@ class DataLotto49Advanced {
     return csv;
   }
 
-  async loadSpecificGame(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo') {
+  async loadSpecificGame(gameKey: 'bonoloto' | 'primitiva' | 'euromillones' | 'eurodreams' | 'gordo' | 'nacional') {
     const GAMES_CONFIG: { [key: string]: string } = {
         bonoloto: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQoIJeLcb9AcK8E6o_aw41gseUzNHl3518Etam-O60x-I9m8Ta6zMcg5TwZCznXzmWzxU18i-bYX81D/pub?output=csv",
         primitiva: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmhAHqGSrFFNqbugQz_CK9X-pT2diofnrYy_Wus7_MyPlDjJVk-8n1MGIat9phYSzeY0vz7kKjw-tC/pub?output=csv",
         euromillones: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9LdJPVydRU1ohhiCuUeVb0nFTnFdZG_4JJhD8K7dJzrhHVOLUNB1SDF4TkbkqXSqrF_LGbhYQGgl6/pub?output=csv",
         eurodreams: "https://docs.google.com/spreadsheets/d/e/2PACX-1vR9UhEkG1_cHAMDvBsmhkzqjpismGFGhouomp9PV3QN4YfIAsdvQF4A5d1iOddnjbz8CKkN3xFC-jjf/pub?output=csv",
-        gordo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS_2jIvMo4_HmGowBdT0oRAB0fQOCW28JDtgxc_Rm_u9YBUTx1_D7pQ3-NuMh7KvuCJNpoP7bzgAzPc/pub?output=csv"
+        gordo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS_2jIvMo4_HmGowBdT0oRAB0fQOCW28JDtgxc_Rm_u9YBUTx1_D7pQ3-NuMh7KvuCJNpoP7bzgAzPc/pub?output=csv",
+        nacional: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRNOVmWdMXMTnHaBa9XiYUkkjaXCkqo0c59Hsgp_AVd1wFlmUWZPb6WML5MNHxZCQptlmyhRvwPVyGg/pub?output=csv"
     };
 
-    const url = GAMES_CONFIG[gameKey];
+    const url = this.customGameUrls[gameKey] || GAMES_CONFIG[gameKey];
     this.toggleModal('gameSelectionModal', false);
     this.showFilterSpinner();
 
     try {
+      if (!url) {
+          throw new Error("No se ha configurado un enlace para este sorteo. Por favor, configúralo en la sección 'Ajustes' en la barra lateral.");
+      }
       const gameName = GAMES[gameKey]?.name || gameKey;
       this.showLoading(`Cargando base de datos de ${gameName}...`);
       let content = '';
@@ -1682,7 +2516,11 @@ class DataLotto49Advanced {
 
       const data = this.parseCSVData(content);
       
+      this.allHistoricalData = data;
       this.historicalData = data;
+      if (gameKey === 'nacional') {
+          this.applyNacionalFilter();
+      }
       this.dataType = gameKey;
       this.dataLoaded = true;
       this.updateDataAnalysis();
@@ -1704,6 +2542,31 @@ class DataLotto49Advanced {
         this.hideFilterSpinner();
     }
   }
+
+  applyNacionalFilter() {
+    if (this.currentGame.id !== 'nacional') {
+      return;
+    }
+    if (!this.allHistoricalData || this.allHistoricalData.length === 0) {
+      this.allHistoricalData = [...this.historicalData];
+    }
+    
+    if (this.nacionalDrawFilter === 'all') {
+      this.historicalData = [...this.allHistoricalData];
+    } else {
+      this.historicalData = this.allHistoricalData.filter(draw => {
+        const month = draw.date.getMonth(); // 0-indexed: 11 is December, 0 is January
+        const day = draw.date.getDate();
+        if (this.nacionalDrawFilter === 'navidad') {
+          return draw.drawType === 'navidad' || (month === 11 && day === 22);
+        } else if (this.nacionalDrawFilter === 'nino') {
+          return draw.drawType === 'nino' || (month === 0 && day === 6);
+        }
+        return true;
+      });
+    }
+  }
+
   async loadDataFile(file: File): Promise<Draw[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1726,12 +2589,236 @@ class DataLotto49Advanced {
     }
 
     const firstLine = lines.shift()!;
-    const header = firstLine.toLowerCase().split(/[,;\t\s]+/).map(h => h.trim());
+    const header = firstLine.toLowerCase().split(/[,;\t]+/).map(h => h.trim().replace(/^["']|["']$/g, '').trim());
 
     const isHeader = header.some(h => isNaN(parseInt(h)) && isNaN(new Date(h).getTime()));
     
     if (!isHeader) {
         lines.unshift(firstLine); 
+    }
+    
+    if (this.currentGame.id === 'nacional') {
+        const parsedDraws: Draw[] = [];
+        const originalLines = [...lines];
+
+        // Auto-detect if CSV has prize categories
+        let hasPrizeCategories = false;
+        for (let i = 0; i < Math.min(1000, originalLines.length); i++) {
+            const lineClean = originalLines[i].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            if (lineClean.includes('1er premio') || lineClean.includes('1o premio') || lineClean.includes('primer premio')) {
+                hasPrizeCategories = true;
+                break;
+            }
+        }
+
+        // 1. Let's parse all lines into columns
+        const rowsParts = originalLines.map(line => line.split(/[,;\t]/));
+        
+        // Find the maximum number of columns across rows
+        let maxCols = 0;
+        rowsParts.forEach(parts => {
+            if (parts.length > maxCols) maxCols = parts.length;
+        });
+
+        // 2. Score each column index to find the winning number column
+        let bestColIdx = -1;
+        let highestScore = -1;
+
+        if (maxCols > 0) {
+            const colScores = Array(maxCols).fill(0);
+            
+            // Header bonus
+            if (isHeader && header) {
+                header.forEach((h, col) => {
+                    const hClean = h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    if (hClean.includes('primer') && hClean.includes('premio')) {
+                        colScores[col] += 1000;
+                    } else if (hClean.includes('1') && hClean.includes('premio')) {
+                        colScores[col] += 1000;
+                    } else if (hClean.includes('numero') || hClean.includes('decimo')) {
+                        colScores[col] += 500;
+                    } else if (hClean.includes('combinac') || hClean.includes('resultado')) {
+                        colScores[col] += 400;
+                    } else if (hClean.includes('sorteo') || hClean.includes('fecha') || hClean.includes('date') || hClean.includes('segundo') || hClean.includes('2')) {
+                        colScores[col] -= 500; // negative bonus for columns that are clearly not the 1st prize
+                    }
+                });
+            }
+
+            // Analyze data rows (sample up to 200 rows matching 1st prize if categories are present)
+            const sampleRows = rowsParts.filter(parts => {
+                if (!hasPrizeCategories) return true;
+                const lineClean = parts.join(' ').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                return lineClean.includes('1er premio') || lineClean.includes('1o premio') || lineClean.includes('primer premio');
+            }).slice(0, 200);
+
+            for (let col = 0; col < maxCols; col++) {
+                let validCount = 0;
+                let sumOfVals = 0;
+                const uniqueVals = new Set<number>();
+                let hasLeadingZeroStr = false;
+
+                sampleRows.forEach(parts => {
+                    if (col >= parts.length) return;
+                    const cell = parts[col].trim();
+                    if (!cell) return;
+
+                    // Remove dot separators if formatted like 35.072 or with spaces/quotes
+                    const cleanCell = cell.replace(/[\.\s,'"]+/g, '');
+                    if (/^\d+$/.test(cleanCell)) {
+                        const num = parseInt(cleanCell, 10);
+                        if (num >= 0 && num <= 99999) {
+                            validCount++;
+                            sumOfVals += num;
+                            uniqueVals.add(num);
+                            if (cell.length === 5 && cell.startsWith('0')) {
+                                hasLeadingZeroStr = true;
+                            }
+                        }
+                    }
+                });
+
+                if (validCount > 0) {
+                    const avg = sumOfVals / validCount;
+                    const uniquenessRatio = uniqueVals.size / validCount;
+
+                    let colScore = colScores[col];
+                    // General criteria: Lotería Nacional numbers are spread between 0 and 99999.
+                    // So average should be between 1000 and 95000, and there should be high uniqueness.
+                    if (avg >= 500 && avg <= 99500) {
+                        colScore += 100;
+                    }
+                    if (uniquenessRatio > 0.4) {
+                        colScore += 150;
+                    }
+                    if (hasLeadingZeroStr) {
+                        colScore += 300; // Strong indicator for formatted lottery numbers!
+                    }
+                    
+                    colScores[col] = colScore;
+                } else {
+                    colScores[col] = -9999;
+                }
+            }
+
+            // Find column with highest score
+            for (let col = 0; col < maxCols; col++) {
+                if (colScores[col] > highestScore) {
+                    highestScore = colScores[col];
+                    bestColIdx = col;
+                }
+            }
+        }
+
+        const seenDates = new Set<string>();
+
+        // 3. Process the lines using our best column index
+        originalLines.forEach((line, i) => {
+            const parts = line.split(/[,;\t]/);
+            
+            // If has prize categories, skip lines that are not 1er Premio
+            if (hasPrizeCategories) {
+                const lineClean = line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                const matchesFirstPremio = lineClean.includes('1er premio') || lineClean.includes('1o premio') || lineClean.includes('primer premio');
+                if (!matchesFirstPremio) {
+                    return;
+                }
+            }
+
+            let date: Date | null = null;
+            let digits: number[] | null = null;
+
+            // Extract date
+            for (let j = 0; j < parts.length; j++) {
+                const p = parts[j].trim();
+                if (p.includes('-') || p.includes('/')) {
+                    const d = new Date(p);
+                    if (!isNaN(d.getTime())) {
+                        date = d;
+                        break;
+                    }
+                }
+            }
+
+            // Try to extract digits using best column index
+            if (bestColIdx > -1 && bestColIdx < parts.length) {
+                const val = parts[bestColIdx].trim();
+                // Clean dots, spaces, quotes, etc.
+                const cleanVal = val.replace(/[\.\s,'"]+/g, '');
+                const num = parseInt(cleanVal, 10);
+                if (num >= 0 && num <= 99999) {
+                    const paddedStr = String(num).padStart(5, '0');
+                    digits = paddedStr.split('').map(Number);
+                }
+            }
+
+            // Fallback: If still no digits, search for any column with a number that could be a valid decimal décimo
+            if (!digits) {
+                for (let j = 0; j < parts.length; j++) {
+                    const val = parts[j].trim();
+                    const cleanVal = val.replace(/[\.\s,'"]+/g, '');
+                    if (/^\d+$/.test(cleanVal)) {
+                        const num = parseInt(cleanVal, 10);
+                        // A valid décimo between 0 and 99999
+                        if (num >= 0 && num <= 99999 && j !== bestColIdx) {
+                            // Exclude columns that are likely Sorteo numbers (like 1 to 200) or years (1700 to 2050)
+                            if (num > 250 && num !== new Date().getFullYear()) {
+                                const paddedStr = String(num).padStart(5, '0');
+                                digits = paddedStr.split('').map(Number);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (digits && digits.length === 5) {
+                let dType: 'navidad' | 'nino' | 'normal' = 'normal';
+                
+                // Inspect all columns for keywords
+                for (let j = 0; j < parts.length; j++) {
+                    const p = parts[j].trim().toLowerCase();
+                    if (p.includes('navidad') || p.includes('navide')) {
+                        dType = 'navidad';
+                        break;
+                    } else if (p.includes('niño') || p.includes('nino')) {
+                        dType = 'nino';
+                        break;
+                    }
+                }
+                
+                // Fallback / complement with Date
+                const finalDate = date || new Date(Date.now() - (originalLines.length - i) * 7 * 24 * 60 * 60 * 1000);
+                if (finalDate) {
+                    const month = finalDate.getMonth(); // 0-indexed: 11 is December, 0 is January
+                    const day = finalDate.getDate();
+                    if (month === 11 && day === 22) {
+                        dType = 'navidad';
+                    } else if (month === 0 && day === 6) {
+                        dType = 'nino';
+                    }
+                }
+
+                const dateStr = finalDate.toISOString().split('T')[0];
+                if (seenDates.has(dateStr)) {
+                    return; // Skip duplicate dates to avoid duplicate draws on the same day
+                }
+                seenDates.add(dateStr);
+
+                const encodedNumbers = digits.map((digit, col) => (col + 1) * 10 + digit);
+                parsedDraws.push({
+                    id: parsedDraws.length + 1,
+                    date: finalDate,
+                    numbers: encodedNumbers,
+                    sum: encodedNumbers.reduce((a, b) => a + b, 0),
+                    drawType: dType
+                });
+            }
+        });
+
+        if (parsedDraws.length > 0) {
+            return parsedDraws;
+        }
     }
     
     let dateIndex = -1;
@@ -1789,7 +2876,7 @@ class DataLotto49Advanced {
 
     if (numberIndices.length < maxNumbers) {
         return lines.map((line, i) => {
-            const parts = line.split(/[,;\t\s]+/);
+            const parts = line.split(/[,;\t]+/).map(p => p.trim().replace(/^["']|["']$/g, '').trim());
             let date: Date | null = null;
             if (parts.length > 0) {
                 const d = new Date(parts[0]);
@@ -1839,7 +2926,7 @@ class DataLotto49Advanced {
     
     return lines.map((line, i) => {
         try {
-            const parts = line.split(/[,;\t\s]+/);
+            const parts = line.split(/[,;\t]+/).map(p => p.trim().replace(/^["']|["']$/g, '').trim());
             if (parts.length <= Math.max(...numberIndices, dateIndex)) {
                 return null;
             }
@@ -1982,7 +3069,8 @@ class DataLotto49Advanced {
   analyzeNumbers() {
     // Reset stats
     this.numberStats = {};
-    for(let i = 1; i <= this.currentGame.numberRange; i++) this.numberStats[i] = { frequency: 0, score: 0, lastSeen: 0 };
+    const startNum = this.currentGame.id === 'nacional' ? 10 : 1;
+    for(let i = startNum; i <= this.currentGame.numberRange; i++) this.numberStats[i] = { frequency: 0, score: 0, lastSeen: 0 };
     
     this.starStats = {};
     if (this.currentGame.maxStars > 0) {
@@ -2150,6 +3238,7 @@ class DataLotto49Advanced {
   }
 
   classifyNumbers() {
+    const startNum = this.currentGame.id === 'nacional' ? 10 : 1;
     // Classify Numbers
     const freqs = Object.values(this.numberStats).map(s => s.frequency);
     const sortedFreqs = [...freqs].sort((a, b) => a - b);
@@ -2159,7 +3248,7 @@ class DataLotto49Advanced {
     this.coldNumbers.clear();
     this.absentNumbers.clear();
     
-    for (let num = 1; num <= this.currentGame.numberRange; num++) {
+    for (let num = startNum; num <= this.currentGame.numberRange; num++) {
       const freq = this.numberStats[num] ? this.numberStats[num].frequency : 0;
       if (freq >= hotThreshold) this.hotNumbers.add(num);
       if (freq <= coldThreshold) this.coldNumbers.add(num);
@@ -2188,7 +3277,7 @@ class DataLotto49Advanced {
         
         // Numbers absence
         const numberAbsences: { num: number; absence: number }[] = [];
-        for (let num = 1; num <= this.currentGame.numberRange; num++) {
+        for (let num = startNum; num <= this.currentGame.numberRange; num++) {
             const absence = totalDraws - (this.numberStats[num] ? this.numberStats[num].lastSeen : 0);
             numberAbsences.push({ num, absence });
         }
@@ -2218,8 +3307,9 @@ class DataLotto49Advanced {
     }
   }
   updateGridNumberStates() {
+    const startNum = this.currentGame.id === 'nacional' ? 10 : 1;
     // Update Main Numbers
-    for (let i = 1; i <= this.currentGame.numberRange; i++) {
+    for (let i = startNum; i <= this.currentGame.numberRange; i++) {
       const ball = document.querySelector(`.number-ball[data-number="${i}"][data-type="number"]`);
       if (ball) {
         ball.classList.remove('hot', 'cold', 'absent', 'suggested', 'favorite', 'excluded');
@@ -2324,13 +3414,41 @@ class DataLotto49Advanced {
       selectionTitle.textContent = `Selección de números (${this.currentGame.name})`;
     }
 
+    grid.style.gridTemplateColumns = `repeat(${this.currentGame.gridCols}, 1fr)`;
+
+    const isNacional = this.currentGame.id === 'nacional';
+    if (isNacional) {
+      grid.classList.add('game-nacional');
+    } else {
+      grid.classList.remove('game-nacional');
+    }
+
+    const startNum = isNacional ? 10 : 1;
+
     // Main Numbers Grid
-    for (let i = 1; i <= this.currentGame.numberRange; i++) {
+    for (let i = startNum; i <= this.currentGame.numberRange; i++) {
+      if (isNacional && i % 10 === 0) {
+        const rowLabels = [
+          "1ª Cifra (Decena de millar)",
+          "2ª Cifra (Unidad de millar)",
+          "3ª Cifra (Centena)",
+          "4ª Cifra (Decena)",
+          "5ª Cifra (Unidad - Reintegro)"
+        ];
+        const labelIdx = Math.floor(i / 10) - 1;
+        if (labelIdx >= 0 && labelIdx < 5) {
+          const label = document.createElement('div');
+          label.style.cssText = 'grid-column: span 10; margin-top: 12px; margin-bottom: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; text-align: left; padding-left: 2px;';
+          label.textContent = rowLabels[labelIdx];
+          grid.appendChild(label);
+        }
+      }
+
       const ball = document.createElement('div');
       ball.classList.add('number-ball');
       ball.dataset.number = String(i);
       ball.dataset.type = 'number';
-      ball.innerHTML = `${i}<span class="number-icon"></span>`;
+      ball.innerHTML = `${isNacional ? i % 10 : i}<span class="number-icon"></span>`;
       grid.appendChild(ball);
     }
 
@@ -2394,26 +3512,12 @@ class DataLotto49Advanced {
     if (activeLi) activeLi.classList.add('active');
 
     // Update Header Title
-    const headerTitle = document.querySelector('.header h1');
-    if (headerTitle) {
-        if (gameId === 'bonoloto') {
-            headerTitle.textContent = 'Bonoloto 6/49';
-        } else if (gameId === 'primitiva') {
-            headerTitle.textContent = 'La Primitiva 6/49';
-        } else if (gameId === 'euromillones') {
-            headerTitle.textContent = 'Euromillones 5/50 ⭐2/12';
-        } else if (gameId === 'eurodreams') {
-            headerTitle.textContent = 'EuroDreams 6/40 🌙1/5';
-        } else if (gameId === 'gordo') {
-            headerTitle.textContent = 'El Gordo 5/54 🔑1/10';
-        } else {
-            headerTitle.textContent = '🎲 DataLotto49';
-        }
-    }
+    this.updateHeaderTitle();
 
     // Re-render filter options for the new game
     this.renderFilterOptions();
     this.updateUIFromFilterState(); // Ensure UI reflects the loaded filters for this game
+    this.updateGameSpecificUI();
 
     // Re-create grid and reset stats for the new game
     this.createNumbersGrid();
@@ -2424,7 +3528,71 @@ class DataLotto49Advanced {
     this.updateFilterBadgesFromAudit();
     this.closeSidebar();
     
+    // Save state to persist game choice
+    this.saveState();
+    
     this.showToast(`Cambiado a ${this.currentGame.name}`, 'success');
+  }
+
+  updateGameSpecificUI() {
+    const gameId = this.currentGame.id;
+
+    // Toggle custom filters panels
+    const standardFiltersContainer = document.getElementById('standardFiltersContainer');
+    const nacionalFiltersContainer = document.getElementById('nacionalFiltersContainer');
+    if (standardFiltersContainer && nacionalFiltersContainer) {
+        if (gameId === 'nacional') {
+            standardFiltersContainer.style.display = 'none';
+            nacionalFiltersContainer.style.display = 'grid';
+        } else {
+            standardFiltersContainer.style.display = 'grid';
+            nacionalFiltersContainer.style.display = 'none';
+        }
+    }
+    
+    // 1. Hide/show Múltiple strategy button
+    const multipleBtn = document.querySelector('.strategy-btn[data-strategy="multiple"]') as HTMLElement;
+    if (multipleBtn) {
+        if (gameId === 'nacional') {
+            multipleBtn.style.display = 'none';
+            // Reset to 'simple' strategy if active strategy was 'multiple'
+            const activeStratBtn = document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement;
+            if (activeStratBtn && activeStratBtn.dataset.strategy === 'multiple') {
+                this.updateStrategyUI('simple');
+            }
+        } else {
+            multipleBtn.style.display = '';
+        }
+    }
+    
+    // 2. Hide/show Lotería Nacional draws selection container
+    const nacionalContainer = document.getElementById('nacionalDrawFilterContainer');
+    const filterSelect = document.getElementById('nacionalDrawFilterSelect') as HTMLSelectElement;
+    if (nacionalContainer) {
+        if (gameId === 'nacional') {
+            nacionalContainer.style.display = 'flex';
+            if (filterSelect) {
+                filterSelect.value = this.nacionalDrawFilter || 'all';
+            }
+        } else {
+            nacionalContainer.style.display = 'none';
+        }
+    }
+
+    // 3. Hide/show terminaciones-related filters for Lotería Nacional
+    const excluirTerminacionesGroup = document.getElementById('terminacionesOptions')?.closest('.filter-group') as HTMLElement;
+    const variedadTerminacionesGroup = document.getElementById('terminacionesDistintasOptions')?.closest('.filter-group') as HTMLElement;
+    const entropiaTerminacionesGroup = document.getElementById('entropyTerminacionesMin')?.closest('.filter-group') as HTMLElement;
+
+    if (excluirTerminacionesGroup) {
+        excluirTerminacionesGroup.style.display = gameId === 'nacional' ? 'none' : '';
+    }
+    if (variedadTerminacionesGroup) {
+        variedadTerminacionesGroup.style.display = gameId === 'nacional' ? 'none' : '';
+    }
+    if (entropiaTerminacionesGroup) {
+        entropiaTerminacionesGroup.style.display = gameId === 'nacional' ? 'none' : '';
+    }
   }
 
   getCommonConsecutivePatterns(maxNumbers: number): string[] {
@@ -2706,9 +3874,52 @@ class DataLotto49Advanced {
   }
 
   bindEvents() {
+    // Interceptor in capture phase for Help Mode
+    document.addEventListener('click', (e) => {
+        if (!this.helpModeActive) return;
+
+        const target = e.target as HTMLElement;
+        // Ignore interactions on the sidebar, toggle buttons, reset/close buttons, help modals, and collapsible elements
+        if (
+            target.closest('#sidebar') || 
+            target.closest('#helpModeBtn') || 
+            target.closest('#menuBtn') || 
+            target.closest('#helpModal') || 
+            target.closest('#overlay') ||
+            target.id === 'closeHelpModalBtn' ||
+            target.closest('.collapsible-header') ||
+            target.closest('.collapse-btn')
+        ) {
+            return;
+        }
+
+        // Intercept action
+        e.preventDefault();
+        e.stopPropagation();
+
+        this.showHelpForElement(target);
+    }, true);
+
     document.getElementById('savedTicketsGameFilter')?.addEventListener('change', () => {
         this.updateSavedTickets();
     });
+
+    const filterSelect = document.getElementById('nacionalDrawFilterSelect') as HTMLSelectElement;
+    if (filterSelect) {
+        filterSelect.addEventListener('change', (e) => {
+            const val = (e.target as HTMLSelectElement).value as 'all' | 'navidad' | 'nino';
+            this.nacionalDrawFilter = val;
+            
+            this.applyNacionalFilter();
+            this.updateDataAnalysis();
+            this.analyzeNumbers();
+            this.updateGridNumberStates();
+            this.updateBigDataPanel();
+            this.saveState();
+            
+            this.showToast(`📊 Estudiando ahora: ${filterSelect.options[filterSelect.selectedIndex].text}`, 'info');
+        });
+    }
 
     document.getElementById('numbersGrid')?.addEventListener('click', e => {
       const target = e.target as HTMLElement;
@@ -2816,6 +4027,12 @@ class DataLotto49Advanced {
     });
     document.getElementById('closeContactBtn')?.addEventListener('click', () => this.toggleModal('contactModal', false));
     document.getElementById('sendContactBtn')?.addEventListener('click', () => this.sendContactForm());
+    
+    document.getElementById('helpModeBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggleHelpMode();
+    });
+    document.getElementById('closeHelpModalBtn')?.addEventListener('click', () => this.toggleModal('helpModal', false));
     
     document.getElementById('closeConfigUrlsBtn')?.addEventListener('click', () => this.toggleModal('configUrlsModal', false));
     document.getElementById('saveConfigUrlsBtn')?.addEventListener('click', () => this.saveConfigUrls());
@@ -2966,6 +4183,47 @@ class DataLotto49Advanced {
       this.filters.ai.nashWeight = getVal('nashWeight');
       this.filters.ai.regressionBonus = getVal('regressionBonus');
 
+      if (this.currentGame.id === 'nacional') {
+          const getSelectStr = (id: string): string => {
+              const el = document.getElementById(id) as HTMLSelectElement;
+              return el ? el.value : 'all';
+          };
+          this.filters.nacionalSumaDigitos = { min: getVal('nacionalSumaDigitosMin'), max: getVal('nacionalSumaDigitosMax') };
+          this.filters.nacionalCapicua = getSelectStr('nacionalCapicua');
+          this.filters.nacionalPrimo = getSelectStr('nacionalPrimo');
+          this.filters.nacionalCuadradoCubo = getSelectStr('nacionalCuadradoCubo');
+          this.filters.nacionalRepdigits = getSelectStr('nacionalRepdigits');
+          this.filters.nacionalMultiploDe = getVal('nacionalMultiploDe');
+          this.filters.nacionalFranja = { min: getVal('nacionalFranjaMin'), max: getVal('nacionalFranjaMax') };
+          
+          const objEl = document.getElementById('nacionalObjetivo') as HTMLInputElement;
+          this.filters.nacionalObjetivo = objEl ? objEl.value.trim() : '00000';
+          this.filters.nacionalDistanciaObjetivo = { min: getVal('nacionalDistanciaObjetivoMin'), max: getVal('nacionalDistanciaObjetivoMax') };
+          
+          this.filters.nacionalParidad = [];
+          this.filters.nacionalAltoBajo = [];
+          for (let i = 1; i <= 5; i++) {
+              this.filters.nacionalParidad.push(getSelectStr(`nacionalParidadD${i}`));
+              this.filters.nacionalAltoBajo.push(getSelectStr(`nacionalAltoBajoD${i}`));
+          }
+          
+          this.filters.nacionalConsecutivos = getSelectStr('nacionalConsecutivos');
+          this.filters.nacionalSumaMitades = getSelectStr('nacionalSumaMitades');
+          
+          this.filters.nacionalParesConteo = getActiveChips('#nacionalParesConteoOptions .filter-chip.active');
+          this.filters.nacionalAltosConteo = getActiveChips('#nacionalAltosConteoOptions .filter-chip.active');
+          
+          const unicos = getActiveChips('#nacionalUnicosOptions .filter-chip.active').map(Number);
+          this.filters.nacionalUnicos = unicos.length > 0 ? unicos : [1, 2, 3, 4, 5];
+          
+          this.filters.nacionalModaRepeticiones = { min: getVal('nacionalModaRepeticionesMin'), max: getVal('nacionalModaRepeticionesMax') };
+          this.filters.nacionalCeros = getActiveChips('#nacionalCerosOptions .filter-chip.active');
+          this.filters.nacionalPrimosDigitos = { min: getVal('nacionalPrimosDigitosMin'), max: getVal('nacionalPrimosDigitosMax') };
+          this.filters.nacionalRangoInterno = { min: getVal('nacionalRangoInternoMin'), max: getVal('nacionalRangoInternoMax') };
+          this.filters.nacionalDesviacion = { min: getVal('nacionalDesviacionMin', true), max: getVal('nacionalDesviacionMax', true) };
+          this.filters.nacionalEntropiaDigitos = { min: getVal('nacionalEntropiaDigitosMin', true), max: getVal('nacionalEntropiaDigitosMax', true) };
+      }
+
       this.saveState();
   }
 
@@ -3069,6 +4327,18 @@ class DataLotto49Advanced {
     const isEuromillones = this.currentGame.id === 'euromillones';
 
     if (type === 'number') {
+      if (this.currentGame.id === 'nacional') {
+        const targetCol = Math.floor(number / 10);
+        let foundExisting: number | null = null;
+        this.selectedNumbers.forEach(n => {
+          if (Math.floor(n / 10) === targetCol) {
+            foundExisting = n;
+          }
+        });
+        if (foundExisting !== null) {
+          this.removeNumber(foundExisting, 'number');
+        }
+      }
       const limit = isMultiple ? (this.currentGame.maxNumbers === 5 ? 10 : 11) : this.currentGame.maxNumbers;
       if (this.selectedNumbers.size < limit) {
         this.selectedNumbers.add(number);
@@ -3194,7 +4464,8 @@ class DataLotto49Advanced {
     const excluded = type === 'number' ? this.excludedNumbers : this.excludedStars;
     const universe: number[] = [];
     
-    for (let i = 1; i <= range; i++) {
+    const startNum = (type === 'number' && this.currentGame.id === 'nacional') ? 10 : 1;
+    for (let i = startNum; i <= range; i++) {
       if (excluded.has(i)) continue;
       
       // Additional filter for main numbers: excluded endings
@@ -3261,7 +4532,7 @@ class DataLotto49Advanced {
         const ball = document.createElement('div');
         ball.classList.add('number-ball', 'selected');
         ball.style.cssText = 'width: 35px; height: 35px; cursor: default;';
-        ball.textContent = String(num);
+        ball.textContent = this.currentGame.id === 'nacional' ? String(num % 10) : String(num);
         display.appendChild(ball);
       });
 
@@ -3294,11 +4565,11 @@ class DataLotto49Advanced {
 
     const className = type === 'random' ? 'random-pick' : 'generated-pick';
 
-    combination.sort((a, b) => a - b).forEach(num => {
+    [...combination].sort((a, b) => a - b).forEach(num => {
         const ball = document.createElement('div');
         ball.classList.add('number-ball', className);
         ball.style.cssText = 'width: 35px; height: 35px; cursor: default;';
-        ball.textContent = String(num);
+        ball.textContent = this.currentGame.id === 'nacional' ? String(num % 10) : String(num);
         display.appendChild(ball);
     });
 
@@ -3308,7 +4579,7 @@ class DataLotto49Advanced {
         separator.textContent = '+';
         display.appendChild(separator);
 
-        stars.sort((a, b) => a - b).forEach(num => {
+        [...stars].sort((a, b) => a - b).forEach(num => {
             const ball = document.createElement('div');
             ball.classList.add('number-ball', 'star-ball', className);
             ball.style.cssText = 'width: 35px; height: 35px; cursor: default; background: #fbbf24; color: #000;';
@@ -3595,6 +4866,210 @@ class DataLotto49Advanced {
       if (combination.length !== maxNumbers) return false;
       if (maxStars > 0 && stars.length !== maxStars) return false;
 
+      if (this.currentGame.id === 'nacional') {
+          const colsCount = [0, 0, 0, 0, 0];
+          for (let i = 0; i < combination.length; i++) {
+              const col = Math.floor(combination[i] / 10) - 1;
+              if (col < 0 || col >= 5) return false;
+              colsCount[col]++;
+          }
+          if (colsCount.some(c => c !== 1)) return false;
+
+          // Extract ordered digits
+          const sorted = [...combination].sort((a, b) => a - b);
+          const digits = sorted.map(num => num % 10);
+          const d1 = digits[0];
+          const d2 = digits[1];
+          const d3 = digits[2];
+          const d4 = digits[3];
+          const d5 = digits[4];
+          const numString = digits.join('');
+          const numValue = parseInt(numString, 10);
+
+          const isPrimeNumber = (n: number): boolean => {
+              if (n < 2) return false;
+              if (n === 2 || n === 3) return true;
+              if (n % 2 === 0 || n % 3 === 0) return false;
+              const limit = Math.sqrt(n);
+              for (let i = 5; i <= limit; i += 6) {
+                  if (n % i === 0 || n % (i + 2) === 0) return false;
+              }
+              return true;
+          };
+
+          // 1. Suma de dígitos
+          if (this.filters.nacionalSumaDigitos) {
+              const sumVal = d1 + d2 + d3 + d4 + d5;
+              if (sumVal < this.filters.nacionalSumaDigitos.min || sumVal > this.filters.nacionalSumaDigitos.max) return false;
+          }
+
+          // 2. Capicúa
+          if (this.filters.nacionalCapicua && this.filters.nacionalCapicua !== 'all') {
+              const isCapicua = d1 === d5 && d2 === d4;
+              if (this.filters.nacionalCapicua === 'yes' && !isCapicua) return false;
+              if (this.filters.nacionalCapicua === 'no' && isCapicua) return false;
+          }
+
+          // 3. Primalidad
+          if (this.filters.nacionalPrimo && this.filters.nacionalPrimo !== 'all') {
+              const isPrime = isPrimeNumber(numValue);
+              if (this.filters.nacionalPrimo === 'yes' && !isPrime) return false;
+              if (this.filters.nacionalPrimo === 'no' && isPrime) return false;
+          }
+
+          // 4. Cuadrado / Cubo perfecto
+          if (this.filters.nacionalCuadradoCubo && this.filters.nacionalCuadradoCubo !== 'all') {
+              const isSquare = Math.floor(Math.sqrt(numValue)) ** 2 === numValue;
+              const isCube = Math.floor(Math.cbrt(numValue)) ** 3 === numValue;
+              const isPerf = isSquare || isCube;
+              if (this.filters.nacionalCuadradoCubo === 'yes' && !isPerf) return false;
+              if (this.filters.nacionalCuadradoCubo === 'no' && isPerf) return false;
+          }
+
+          // 5. Repdigits
+          if (this.filters.nacionalRepdigits && this.filters.nacionalRepdigits !== 'all') {
+              const isRepdigit = d1 === d2 && d2 === d3 && d3 === d4 && d4 === d5;
+              if (this.filters.nacionalRepdigits === 'yes' && !isRepdigit) return false;
+              if (this.filters.nacionalRepdigits === 'no' && isRepdigit) return false;
+          }
+
+          // 6. Múltiplo de N
+          if (this.filters.nacionalMultiploDe && this.filters.nacionalMultiploDe > 1) {
+              if (numValue % this.filters.nacionalMultiploDe !== 0) return false;
+          }
+
+          // 7. Rango por franja
+          if (this.filters.nacionalFranja) {
+              if (numValue < this.filters.nacionalFranja.min || numValue > this.filters.nacionalFranja.max) return false;
+          }
+
+          // 8. Distancia a objetivo
+          if (this.filters.nacionalObjetivo && this.filters.nacionalDistanciaObjetivo) {
+              const targetVal = parseInt(this.filters.nacionalObjetivo, 10);
+              if (!isNaN(targetVal)) {
+                  const diff = Math.abs(numValue - targetVal);
+                  if (diff < this.filters.nacionalDistanciaObjetivo.min || diff > this.filters.nacionalDistanciaObjetivo.max) return false;
+              }
+          }
+
+          // 9. Paridad por posición
+          if (this.filters.nacionalParidad) {
+              for (let i = 0; i < 5; i++) {
+                  const rule = this.filters.nacionalParidad[i];
+                  if (rule === 'par' && digits[i] % 2 !== 0) return false;
+                  if (rule === 'imp' && digits[i] % 2 === 0) return false;
+              }
+          }
+
+          // 10. Alto/bajo por posición
+          if (this.filters.nacionalAltoBajo) {
+              for (let i = 0; i < 5; i++) {
+                  const rule = this.filters.nacionalAltoBajo[i];
+                  if (rule === 'bajo' && digits[i] > 4) return false;
+                  if (rule === 'alto' && digits[i] < 5) return false;
+              }
+          }
+
+          // 11. Secuencias consecutivas
+          let isAsc = true;
+          let isDesc = true;
+          for (let i = 1; i < 5; i++) {
+              if (digits[i] !== digits[i - 1] + 1) isAsc = false;
+              if (digits[i] !== digits[i - 1] - 1) isDesc = false;
+          }
+          if (this.filters.nacionalConsecutivos && this.filters.nacionalConsecutivos !== 'all') {
+              if (this.filters.nacionalConsecutivos === 'yes_asc' && !isAsc) return false;
+              if (this.filters.nacionalConsecutivos === 'yes_desc' && !isDesc) return false;
+              if (this.filters.nacionalConsecutivos === 'any_consec' && !isAsc && !isDesc) return false;
+              if (this.filters.nacionalConsecutivos === 'no' && (isAsc || isDesc)) return false;
+          }
+
+          // 12. Suma de mitades
+          if (this.filters.nacionalSumaMitades && this.filters.nacionalSumaMitades !== 'all') {
+              const sum1 = d1 + d2;
+              const sum2 = d4 + d5;
+              if (this.filters.nacionalSumaMitades === 'equal' && sum1 !== sum2) return false;
+              if (this.filters.nacionalSumaMitades === 'greater' && sum1 <= sum2) return false;
+              if (this.filters.nacionalSumaMitades === 'less' && sum1 >= sum2) return false;
+          }
+
+          // 13. Pares/Impares por conteo
+          if (this.filters.nacionalParesConteo && this.filters.nacionalParesConteo.length > 0) {
+              const evensCount = digits.filter(d => d % 2 === 0).length;
+              const oddsCount = 5 - evensCount;
+              const category = `${evensCount}P/${oddsCount}I`;
+              if (!this.filters.nacionalParesConteo.includes(category)) return false;
+          }
+
+          // 14. Altos/Bajos por conteo
+          if (this.filters.nacionalAltosConteo && this.filters.nacionalAltosConteo.length > 0) {
+              const highsCount = digits.filter(d => d >= 5).length;
+              const lowsCount = 5 - highsCount;
+              const category = `${highsCount}A/${lowsCount}B`;
+              if (!this.filters.nacionalAltosConteo.includes(category)) return false;
+          }
+
+          // 15. Variedad de cifras (únicos)
+          if (this.filters.nacionalUnicos && this.filters.nacionalUnicos.length > 0) {
+              const uniqueCount = new Set(digits).size;
+              if (!this.filters.nacionalUnicos.includes(uniqueCount)) return false;
+          }
+
+          // 16. Moda (Repeticiones Máximas)
+          if (this.filters.nacionalModaRepeticiones) {
+              const counts: { [key: number]: number } = {};
+              digits.forEach(d => counts[d] = (counts[d] || 0) + 1);
+              const maxRep = Math.max(...Object.values(counts));
+              if (maxRep < this.filters.nacionalModaRepeticiones.min || maxRep > this.filters.nacionalModaRepeticiones.max) return false;
+          }
+
+          // 17. Cantidad de ceros
+          if (this.filters.nacionalCeros && this.filters.nacionalCeros.length > 0) {
+              const zeroCount = digits.filter(d => d === 0).length;
+              let zeroKey = String(zeroCount);
+              if (zeroCount >= 3) zeroKey = '3+';
+              if (!this.filters.nacionalCeros.includes(zeroKey)) return false;
+          }
+
+          // 18. Primos entre dígitos
+          if (this.filters.nacionalPrimosDigitos) {
+              const primes = new Set([2, 3, 5, 7]);
+              const primesCount = digits.filter(d => primes.has(d)).length;
+              if (primesCount < this.filters.nacionalPrimosDigitos.min || primesCount > this.filters.nacionalPrimosDigitos.max) return false;
+          }
+
+          // 19. Rango interno
+          if (this.filters.nacionalRangoInterno) {
+              const maxVal = Math.max(...digits);
+              const minVal = Math.min(...digits);
+              const diff = maxVal - minVal;
+              if (diff < this.filters.nacionalRangoInterno.min || diff > this.filters.nacionalRangoInterno.max) return false;
+          }
+
+          // 20. Desviación típica
+          if (this.filters.nacionalDesviacion) {
+              const mean = digits.reduce((s, x) => s + x, 0) / 5;
+              const variance = digits.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / 5;
+              const stdDev = Math.sqrt(variance);
+              if (stdDev < this.filters.nacionalDesviacion.min || stdDev > this.filters.nacionalDesviacion.max) return false;
+          }
+
+          // 21. Entropía de Shannon
+          if (this.filters.nacionalEntropiaDigitos) {
+              const counts: { [key: number]: number } = {};
+              digits.forEach(d => counts[d] = (counts[d] || 0) + 1);
+              let entropy = 0;
+              Object.values(counts).forEach(count => {
+                  const p = count / 5;
+                  entropy -= p * Math.log2(p);
+              });
+              entropy = Number(entropy.toFixed(3));
+              if (entropy < this.filters.nacionalEntropiaDigitos.min || entropy > this.filters.nacionalEntropiaDigitos.max) return false;
+          }
+
+          return true; // Passed all Lotería Nacional checks!
+      }
+
       // 1. SUM: extremely cheap to check
       let sum = 0;
       for (let i = 0; i < maxNumbers; i++) sum += combination[i];
@@ -3786,6 +5261,36 @@ class DataLotto49Advanced {
   }
 
   generateRandomCombination(universe: number[], count: number): number[] {
+    if (this.currentGame.id === 'nacional') {
+      const combination: number[] = [];
+      const cols: number[][] = [[], [], [], [], []];
+      universe.forEach(n => {
+        const colIdx = Math.floor(n / 10) - 1;
+        if (colIdx >= 0 && colIdx < 5) {
+          cols[colIdx].push(n);
+        }
+      });
+      
+      let colsToUse = [0, 1, 2, 3, 4];
+      if (count < 5) {
+        colsToUse = colsToUse.sort(() => Math.random() - 0.5).slice(0, count);
+      }
+      
+      colsToUse.forEach(colIdx => {
+        const pool = cols[colIdx];
+        if (pool && pool.length > 0) {
+          const randomIndex = Math.floor(Math.random() * pool.length);
+          combination.push(pool[randomIndex]);
+        } else {
+          // Fallback if no available number was present in universe for this column
+          const randVal = Math.floor(Math.random() * 10);
+          combination.push((colIdx + 1) * 10 + randVal);
+        }
+      });
+      
+      return combination.sort((a, b) => a - b);
+    }
+
     let tempUniverse = [...universe];
     let combination: number[] = [];
     while (combination.length < count && tempUniverse.length > 0) {
@@ -4050,12 +5555,26 @@ class DataLotto49Advanced {
         numbersContainer.style.alignItems = 'center';
         numbersContainer.style.justifyContent = isSystem ? 'center' : 'flex-start';
 
-        combo.sort((a,b)=>a-b).forEach(num => {
-            const numDiv = document.createElement('div');
-            numDiv.className = 'ticket-number';
-            numDiv.textContent = String(num);
-            numbersContainer.appendChild(numDiv);
-        });
+        if (this.currentGame.id === 'nacional') {
+            const digits = [0, 0, 0, 0, 0];
+            combo.forEach(n => {
+                const col = Math.floor(n / 10) - 1;
+                if (col >= 0 && col < 5) digits[col] = n % 10;
+            });
+            digits.forEach(digit => {
+                const numDiv = document.createElement('div');
+                numDiv.className = 'ticket-number';
+                numDiv.textContent = String(digit);
+                numbersContainer.appendChild(numDiv);
+            });
+        } else {
+            [...combo].sort((a,b)=>a-b).forEach(num => {
+                const numDiv = document.createElement('div');
+                numDiv.className = 'ticket-number';
+                numDiv.textContent = String(num);
+                numbersContainer.appendChild(numDiv);
+            });
+        }
 
         if (starsCombinations[idx] && starsCombinations[idx].length > 0) {
             const separator = document.createElement('div');
@@ -4065,7 +5584,7 @@ class DataLotto49Advanced {
             separator.textContent = '+';
             numbersContainer.appendChild(separator);
 
-            starsCombinations[idx].sort((a,b)=>a-b).forEach(num => {
+            [...starsCombinations[idx]].sort((a,b)=>a-b).forEach(num => {
                 const starDiv = document.createElement('div');
                 starDiv.className = 'ticket-number star';
                 starDiv.style.background = '#fbbf24';
@@ -4082,11 +5601,11 @@ class DataLotto49Advanced {
     this.clearGridHighlights();
 
     if (strategy !== 'multiple' && finalCombinations.length > 0) {
-        this.updateTopDisplayWithCombination(finalCombinations[0], 'generated');
+        this.updateTopDisplayWithCombination(finalCombinations[0], 'generated', starsCombinations[0]);
     } else if (strategy === 'multiple') {
         // Mostrar el superset generado en el display superior también
         if (finalCombinations.length > 0) {
-             this.updateTopDisplayWithCombination(finalCombinations[0], 'generated');
+             this.updateTopDisplayWithCombination(finalCombinations[0], 'generated', starsCombinations[0]);
         }
     } else {
         const display = document.getElementById('selectedDisplay');
@@ -4096,20 +5615,37 @@ class DataLotto49Advanced {
 
     // Highlight picks
     if (finalCombinations.length > 0) {
-        // If it's multiple, the first combination IS the superset.
+        // Set as active selection
+        this.selectedNumbers = new Set(finalCombinations[0]);
+        this.selectedStars = new Set(starsCombinations[0] || []);
+
         finalCombinations[0].forEach(num => {
-            const ball = document.querySelector(`.number-ball[data-number="${num}"]`);
+            const ball = document.querySelector(`.number-ball[data-number="${num}"][data-type="number"]`);
             if (ball) {
-                ball.classList.add('generated-pick');
+                ball.classList.add('selected', 'generated-pick');
                 const icon = ball.querySelector('.number-icon');
                 if(icon) icon.textContent = '🤖';
             }
         });
+
+        if (starsCombinations.length > 0 && starsCombinations[0]) {
+            starsCombinations[0].forEach(star => {
+                const ball = document.querySelector(`.number-ball[data-number="${star}"][data-type="star"]`);
+                if (ball) {
+                    ball.classList.add('selected', 'generated-pick');
+                    const icon = ball.querySelector('.number-icon');
+                    if(icon) icon.textContent = '⭐';
+                }
+            });
+        }
+
+        this.updateSelectedDisplay();
+        this.updateStats();
+        this.updateCorrelationScore();
         
         if (strategy === 'multiple') {
-             // Highlight stars if any
-             if (starsCombinations.length > 0) {
-                 starsCombinations[0].forEach(star => {
+             if (false) { /*
+                 return; // starsCombinations[0].forEach(star => {
                      const ball = document.querySelector(`.number-ball.star-ball[data-number="${star}"]`);
                      if (ball) {
                          ball.classList.add('generated-pick');
@@ -4117,11 +5653,11 @@ class DataLotto49Advanced {
                          if(icon) icon.textContent = '⭐';
                      }
                  });
-             }
+             */ }
              // No stats for superset
              this.displayCombinationStats([]);
         } else {
-            this.displayCombinationStats(finalCombinations[0]);
+            this.displayCombinationStats(finalCombinations[0], starsCombinations[0] || []);
         }
     }
     
@@ -4388,7 +5924,21 @@ class DataLotto49Advanced {
                 const starHits = ticket.validation!.starHits ? ticket.validation!.starHits[index] : 0;
                 const hitClass = hits >= 3 ? 'high-hits' : hits > 0 ? 'low-hits' : 'no-hits';
                 
-                let comboHTML = combo.map(n => `<div class="saved-combination-number ${winningNumbersSet.has(n) ? 'selected' : ''}">${n}</div>`).join('');
+                let comboHTML = '';
+                if (ticket.gameId === 'nacional') {
+                  const digits = [0, 0, 0, 0, 0];
+                  combo.forEach(n => {
+                    const col = Math.floor(n / 10) - 1;
+                    if (col >= 0 && col < 5) digits[col] = n % 10;
+                  });
+                  comboHTML = digits.map((digit, col) => {
+                    const encodedNum = (col + 1) * 10 + digit;
+                    const isSelected = winningNumbersSet.has(encodedNum);
+                    return `<div class="saved-combination-number ${isSelected ? 'selected' : ''}" style="border-radius: 4px; font-weight: bold; background: ${isSelected ? 'var(--secondary)' : '#f1f5f9'}; border: 1px solid #cbd5e1; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; margin: 0 2px; color: ${isSelected ? '#fff' : '#1f2937'};">${digit}</div>`;
+                  }).join('');
+                } else {
+                  comboHTML = combo.map(n => `<div class="saved-combination-number ${winningNumbersSet.has(n) ? 'selected' : ''}">${n}</div>`).join('');
+                }
                 
                 if (ticket.stars && ticket.stars[index] && ticket.stars[index].length > 0) {
                     comboHTML += `<span style="margin: 0 4px; color: #9ca3af; font-weight: bold;">+</span>`;
@@ -4404,7 +5954,17 @@ class DataLotto49Advanced {
             actionsHTML = `${playOnlineHTML}<button class="validate verified" disabled>Verificado</button>`;
           } else {
             combosHTML = ticket.combinations.map((combo, index) => {
-                let comboHTML = combo.map(n => `<div class="saved-combination-number">${n}</div>`).join('');
+                let comboHTML = '';
+                if (ticket.gameId === 'nacional') {
+                  const digits = [0, 0, 0, 0, 0];
+                  combo.forEach(n => {
+                    const col = Math.floor(n / 10) - 1;
+                    if (col >= 0 && col < 5) digits[col] = n % 10;
+                  });
+                  comboHTML = digits.map(digit => `<div class="saved-combination-number" style="border-radius: 4px; font-weight: bold; background: #f1f5f9; border: 1px solid #cbd5e1; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; margin: 0 2px; color: #1f2937;">${digit}</div>`).join('');
+                } else {
+                  comboHTML = combo.map(n => `<div class="saved-combination-number">${n}</div>`).join('');
+                }
                 if (ticket.stars && ticket.stars[index] && ticket.stars[index].length > 0) {
                     comboHTML += `<span style="margin: 0 4px; color: #9ca3af; font-weight: bold;">+</span>`;
                     comboHTML += ticket.stars[index].map(n => `<div class="saved-combination-number" style="background: #fbbf24; color: #000;">${n}</div>`).join('');
@@ -4568,9 +6128,27 @@ class DataLotto49Advanced {
     const numberRange = game?.numberRange || 49;
     const starRange = game?.starRange || 0;
 
-    const winningNumbers = Array.from(new Set(inputEl.value.split(/[ ,.]+/).map(n => parseInt(n)).filter(n => !isNaN(n) && n > 0 && n <= numberRange)));
+    let winningNumbers: number[] = [];
+    if (gameId === 'nacional') {
+        const valClean = inputEl.value.trim().replace(/[ ,.]+/g, '');
+        if (valClean.length === 5 && /^\d+$/.test(valClean)) {
+            const digits = valClean.split('').map(Number);
+            winningNumbers = digits.map((digit, col) => (col + 1) * 10 + digit);
+        } else {
+            const parts = inputEl.value.split(/[ ,.]+/).map(n => parseInt(n)).filter(n => !isNaN(n) && n >= 0 && n <= 9);
+            if (parts.length === 5) {
+                winningNumbers = parts.map((digit, col) => (col + 1) * 10 + digit);
+            }
+        }
+    } else {
+        winningNumbers = Array.from(new Set(inputEl.value.split(/[ ,.]+/).map(n => parseInt(n)).filter(n => !isNaN(n) && n > 0 && n <= numberRange)));
+    }
+
     if (winningNumbers.length !== maxNumbers) {
-      this.showToast(`Introduce ${maxNumbers} números ganadores válidos.`, 'error');
+      const errorMsg = gameId === 'nacional' ? 
+        'Introduce un décimo de 5 cifras válido (ej: 35072 o 3 5 0 7 2).' : 
+        `Introduce ${maxNumbers} números ganadores válidos.`;
+      this.showToast(errorMsg, 'error');
       return;
     }
 
@@ -4924,6 +6502,8 @@ class DataLotto49Advanced {
     const isOpen = sidebar.classList.toggle('open');
     menuBtn.classList.toggle('open', isOpen);
     overlay.classList.toggle('show', isOpen);
+
+    this.updateTopTitleVisibility();
   }
 
   closeSidebar() {
@@ -4935,6 +6515,8 @@ class DataLotto49Advanced {
     sidebar.classList.remove('open');
     menuBtn.classList.remove('open');
     overlay.classList.remove('show');
+
+    this.updateTopTitleVisibility();
   }
 
   openConfigUrlsModal() {
@@ -4948,7 +6530,8 @@ class DataLotto49Advanced {
             primitiva: '🇪🇸 Primitiva',
             gordo: '🏆 El Gordo',
             euromillones: '🇪🇺 Euromillones',
-            eurodreams: '🌙 EuroDreams'
+            eurodreams: '🌙 EuroDreams',
+            nacional: '🇪🇸 Lotería Nacional'
         };
 
         Object.keys(this.customGameUrls).forEach(key => {
@@ -5036,9 +6619,10 @@ class DataLotto49Advanced {
       } else {
         throw new Error(data.error || 'Error al enviar');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error enviando contacto:', error);
-      this.showToast('❌ Error al enviar el mensaje. Inténtalo de nuevo.', 'error');
+      const errMsg = error?.message || 'Error al enviar el mensaje. Inténtalo de nuevo.';
+      this.showToast(`❌ ${errMsg}`, 'error');
     } finally {
       if (sendBtn) {
         sendBtn.disabled = false;
@@ -5065,6 +6649,91 @@ class DataLotto49Advanced {
 
     if (!this.dataLoaded || this.historicalData.length === 0) {
         container.innerHTML = '<div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el gráfico.</div>';
+        return;
+    }
+
+    if (this.currentGame.id === 'nacional') {
+        const columns = [
+            { key: 'DM', name: 'Decena de Millar (1ª cifra)' },
+            { key: 'UM', name: 'Unidad de Millar (2ª cifra)' },
+            { key: 'C',  name: 'Centena (3ª cifra)' },
+            { key: 'D',  name: 'Decena (4ª cifra)' },
+            { key: 'U',  name: 'Unidad (5ª cifra)' }
+        ];
+
+        // Calculate frequencies for each position
+        const positionalFreqs: { [key: number]: { [digit: number]: number } } = {
+            0: {}, 1: {}, 2: {}, 3: {}, 4: {}
+        };
+        
+        // Initialize with 0s
+        for (let col = 0; col < 5; col++) {
+            for (let digit = 0; digit < 10; digit++) {
+                positionalFreqs[col][digit] = 0;
+            }
+        }
+
+        // Count frequencies from historical data
+        this.historicalData.forEach(draw => {
+            draw.numbers.forEach(num => {
+                const colIdx = Math.floor(num / 10) - 1;
+                const digit = num % 10;
+                if (colIdx >= 0 && colIdx < 5) {
+                    positionalFreqs[colIdx][digit]++;
+                }
+            });
+        });
+
+        // Find max frequency across all positions for scaling
+        let maxFreq = 0;
+        for (let col = 0; col < 5; col++) {
+            for (let digit = 0; digit < 10; digit++) {
+                if (positionalFreqs[col][digit] > maxFreq) {
+                    maxFreq = positionalFreqs[col][digit];
+                }
+            }
+        }
+
+        // Build HTML
+        const wrapper = document.createElement('div');
+        wrapper.className = 'nacional-freq-grid';
+        wrapper.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; width: 100%; margin-top: 10px;';
+
+        columns.forEach((colInfo, colIdx) => {
+            const subChartContainer = document.createElement('div');
+            subChartContainer.className = 'nacional-subchart';
+            subChartContainer.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;';
+
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size: 0.8rem; font-weight: bold; color: #334155; text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;';
+            title.textContent = colInfo.name;
+            subChartContainer.appendChild(title);
+
+            const barsContainer = document.createElement('div');
+            barsContainer.style.cssText = 'display: flex; gap: 4px; height: 120px; align-items: flex-end; justify-content: space-around; padding-bottom: 4px; border-bottom: 2px solid #94a3b8; padding-top: 20px;';
+
+            for (let digit = 0; digit < 10; digit++) {
+                const freq = positionalFreqs[colIdx][digit];
+                const barHeight = maxFreq > 0 ? (freq / maxFreq) * 100 : 0;
+
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'bar-wrapper';
+                barWrapper.style.cssText = 'flex: 1; height: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;';
+                barWrapper.title = `Cifra ${digit}: ${freq} apariciones`;
+
+                barWrapper.innerHTML = `
+                    <div class="bar-value" style="font-size: 0.65rem; color: #475569; position: absolute; bottom: calc(${barHeight}% + 2px); left: 50%; transform: translateX(-50%); font-weight: bold;">${freq}</div>
+                    <div class="chart-bar" style="height: ${barHeight}%; width: 80%; background: linear-gradient(to top, #3b82f6, #60a5fa); border-radius: 2px 2px 0 0; min-height: 2px;"></div>
+                    <div class="bar-label" style="font-size: 0.75rem; font-weight: bold; color: #1e293b; margin-top: 4px;">${digit}</div>
+                `;
+                barsContainer.appendChild(barWrapper);
+            }
+
+            subChartContainer.appendChild(barsContainer);
+            wrapper.appendChild(subChartContainer);
+        });
+
+        container.appendChild(wrapper);
         return;
     }
 
@@ -5154,11 +6823,13 @@ class DataLotto49Advanced {
       const drawNminus1 = this.historicalData[this.historicalData.length - 2];
       
       const renderMiniDraw = (draw: Draw, label: string) => {
+          const formattedDate = draw.date instanceof Date ? draw.date.toLocaleDateString() : String(draw.date);
           const ballsHtml = draw.numbers.map(n => {
               let className = 'mini-ball';
               if (this.hotNumbers.has(n)) className += ' hot';
               else if (this.coldNumbers.has(n)) className += ' cold';
-              return `<div class="${className}">${n}</div>`;
+              const displayVal = this.currentGame.id === 'nacional' ? (n % 10) : n;
+              return `<div class="${className}">${displayVal}</div>`;
           }).join('');
 
           let starsHtml = '';
@@ -5169,20 +6840,24 @@ class DataLotto49Advanced {
           let extraHtml = '';
           if (this.currentGame.id !== 'euromillones') {
               if (draw.complementario !== undefined) {
-                  extraHtml += `<div class="mini-ball" style="background: #3b82f6; color: white; border-color: #2563eb; font-size: 0.65rem; width: 24px; height: 24px;" title="Complementario">C${draw.complementario}</div>`;
+                  extraHtml += `<div class="mini-ball complementario-ball" title="Complementario">C${draw.complementario}</div>`;
               }
               if (draw.reintegro !== undefined) {
-                  extraHtml += `<div class="mini-ball" style="background: #ef4444; color: white; border-color: #dc2626; font-size: 0.65rem; width: 24px; height: 24px;" title="Reintegro">R${draw.reintegro}</div>`;
+                  extraHtml += `<div class="mini-ball reintegro-ball" title="Reintegro">R${draw.reintegro}</div>`;
               }
           }
 
           return `
-            <div class="mini-draw-row">
-                <div class="mini-draw-label">${label}</div>
-                <div style="display: flex; gap: 4px;">${ballsHtml}</div>
-                ${starsHtml ? `<div style="display: flex; gap: 4px; border-left: 1px solid #eee; padding-left: 8px; margin-left: 4px;">${starsHtml}</div>` : ''}
-                ${extraHtml ? `<div style="display: flex; gap: 4px; border-left: 1px solid #eee; padding-left: 8px; margin-left: 4px;">${extraHtml}</div>` : ''}
-                <span style="font-size: 0.7rem; color: #999; margin-left: auto;">${draw.date.toLocaleDateString()}</span>
+            <div class="mini-draw-card">
+                <div class="mini-draw-header">
+                    <span class="mini-draw-label">${label}</span>
+                    <span class="mini-draw-date">📅 ${formattedDate}</span>
+                </div>
+                <div class="mini-draw-balls">
+                    <div class="mini-balls-group">${ballsHtml}</div>
+                    ${starsHtml ? `<div class="mini-stars-group">${starsHtml}</div>` : ''}
+                    ${extraHtml ? `<div class="mini-extra-group">${extraHtml}</div>` : ''}
+                </div>
             </div>
           `;
       };
@@ -5223,7 +6898,9 @@ class DataLotto49Advanced {
               let className = 'mini-ball';
               if (this.hotNumbers.has(n)) className += ' hot';
               else if (this.coldNumbers.has(n)) className += ' cold';
-              return `<div class="${className}" title="Frecuencia: ${dayFrequencies[n]}">${n}</div>`;
+              const displayVal = this.currentGame.id === 'nacional' ? (n % 10) : n;
+              const positionalName = this.currentGame.id === 'nacional' ? ` (Cifra ${Math.floor(n / 10)}ª)` : '';
+              return `<div class="${className}" title="Frecuencia: ${dayFrequencies[n]}${positionalName}">${displayVal}</div>`;
           }).join('');
 
           if (this.currentGame.maxStars > 0) {
@@ -5295,9 +6972,12 @@ class DataLotto49Advanced {
       // Check double repetition
       const intersection = drawN.numbers.filter(n => drawNminus1.numbers.includes(n));
       if (intersection.length > 0) {
+          const displayIntersection = this.currentGame.id === 'nacional' 
+              ? intersection.map(n => `${n % 10} (Cifra ${Math.floor(n / 10)}ª)`)
+              : intersection;
           alertsContainer.innerHTML += `
             <div class="bd-alert warning">
-                ⚠️ Doble repetición detectada (${intersection.join(', ')}). Probabilidad rebote muy baja (0.8%).
+                ⚠️ Doble repetición detectada (${displayIntersection.join(', ')}). Probabilidad rebote muy baja (0.8%).
             </div>
           `;
       }
@@ -5599,31 +7279,62 @@ class DataLotto49Advanced {
 
       // Preparar datos para el prompt (últimos 50 sorteos)
       const recentDraws = this.historicalData.slice(0, 50).map(d => {
+          if (this.currentGame.id === 'nacional') {
+              const digits = [0, 0, 0, 0, 0];
+              d.numbers.forEach(num => {
+                  const col = Math.floor(num / 10) - 1;
+                  if (col >= 0 && col < 5) digits[col] = num % 10;
+              });
+              return digits.join('');
+          }
           let line = d.numbers.join(',');
           if (d.stars && d.stars.length > 0) line += ` + Stars: ${d.stars.join(',')}`;
           return line;
       }).join('\n');
       
-      const prompt = `
-        Eres un experto en análisis estadístico y teoría de juegos aplicado a loterías (${this.currentGame.name}).
-        Analiza los siguientes últimos 50 resultados históricos:
-        ${recentDraws}
+      let prompt = '';
+      if (this.currentGame.id === 'nacional') {
+        prompt = `
+          Eres un experto en análisis estadístico y teoría de juegos aplicado a la Lotería Nacional de España.
+          Analiza los siguientes últimos 50 resultados históricos (cada línea representa un billete premiado de 5 dígitos consecutivamente de izquierda a derecha: Decena de millar, Unidad de millar, Centena, Decena, Unidad):
+          ${recentDraws}
 
-        Basándote en:
-        1. Frecuencia de aparición (números calientes/fríos).
-        2. Intervalos de ausencia (números que "tocan").
-        3. Patrones de paridad y sumas.
-        4. Distribución en la cuadrícula.
+          Basándote en:
+          1. Frecuencia de aparición de dígitos en cada una de las 5 posiciones.
+          2. Intervalos de ausencia de dígitos en cada posición.
+          3. Patrones de terminación (último dígito) y paridad.
 
-        Genera una predicción de ${this.currentGame.maxNumbers} números (1-${this.currentGame.numberRange})${this.currentGame.maxStars > 0 ? ' y ' + this.currentGame.maxStars + ' estrellas (1-' + this.currentGame.starRange + ')' : ''} con una explicación detallada del porqué de esa combinación.
-        Responde en formato JSON con esta estructura:
-        {
-          "numbers": [n1, n2, n3, n4, n5, n6],
-          ${this.currentGame.maxStars > 0 ? '"stars": [s1, s2],' : ''}
-          "explanation": "Tu análisis aquí...",
-          "confidence": 85
-        }
-      `;
+          Genera una predicción optimizada de 5 dígitos para el próximo sorteo (cada dígito entre 0 y 9 en su respectiva columna de posición).
+          Responde estrictamente en formato JSON con esta estructura exacta:
+          {
+            "numbers": [d0, d1, d2, d3, d4],
+            "explanation": "Tu análisis de la predicción y de las posiciones...",
+            "confidence": 85
+          }
+          Donde d0 es el dígito de la Decena de millar, d1 es Unidad de millar, d2 es Centena, d3 es Decena, y d4 es Unidad.
+        `;
+      } else {
+        prompt = `
+          Eres un experto en análisis estadístico y teoría de juegos aplicado a loterías (${this.currentGame.name}).
+          Analiza los siguientes últimos 50 resultados históricos:
+          ${recentDraws}
+
+          Basándote en:
+          1. Frecuencia de aparición (números calientes/fríos).
+          2. Intervalos de ausencia (números que "tocan").
+          3. Patrones de paridad y sumas.
+          4. Distribución en la cuadrícula.
+
+          Genera una predicción de ${this.currentGame.maxNumbers} números (1-${this.currentGame.numberRange})${this.currentGame.maxStars > 0 ? ' y ' + this.currentGame.maxStars + ' estrellas (1-' + this.currentGame.starRange + ')' : ''} con una explicación detallada del porqué de esa combinación.
+          Responde en formato JSON con esta estructura:
+          {
+            "numbers": [n1, n2, n3, n4, n5, n6],
+            ${this.currentGame.maxStars > 0 ? '"stars": [s1, s2],' : ''}
+            "explanation": "Tu análisis aquí...",
+            "confidence": 85
+          }
+        `;
+      }
 
       const result = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -5645,7 +7356,7 @@ class DataLotto49Advanced {
           </div>
           
           <div class="flex flex-wrap items-center gap-3 p-6 bg-indigo-50 rounded-2xl border border-indigo-100 shadow-inner">
-            ${response.numbers.sort((a:number,b:number)=>a-b).map((n:number) => `
+            ${(this.currentGame.id === 'nacional' ? response.numbers : response.numbers.sort((a:number,b:number)=>a-b)).map((n:number) => `
               <div class="w-12 h-12 rounded-full bg-white border-2 border-indigo-500 flex items-center justify-center text-lg font-bold text-indigo-700 shadow-sm">
                 ${n}
               </div>
@@ -5698,11 +7409,15 @@ class DataLotto49Advanced {
 
   applyAiNumbers() {
     const aiModal = document.getElementById('aiPredictionModal');
-    const numbers = (aiModal as any)?._suggestedNumbers;
+    let numbers = (aiModal as any)?._suggestedNumbers;
     const stars = (aiModal as any)?._suggestedStars;
     
     if (numbers && Array.isArray(numbers)) {
       this.clearSelections(false);
+      if (this.currentGame.id === 'nacional') {
+        // Map positional digits back to encoded numbers: [d0, d1, d2, d3, d4] => [10+d0, 20+d1, 30+d2, 40+d3, 50+d4]
+        numbers = numbers.map((n, idx) => (idx + 1) * 10 + n);
+      }
       numbers.forEach(n => this.addNumber(n, 'number'));
       if (stars && Array.isArray(stars)) {
           stars.forEach(s => this.addNumber(s, 'star'));
@@ -5841,6 +7556,35 @@ class DataLotto49Advanced {
 
   calculateDrawPrize(hits: number, starHits: number, draw: Draw, combo: number[]): number {
       const gId = this.currentGame.id;
+
+      if (gId === 'nacional') {
+          const colMatches = [false, false, false, false, false];
+          combo.forEach(n => {
+              const colIdx = Math.floor(n / 10) - 1;
+              if (colIdx >= 0 && colIdx < 5) {
+                  if (draw.numbers.includes(n)) {
+                      colMatches[colIdx] = true;
+                  }
+              }
+          });
+          
+          if (colMatches[0] && colMatches[1] && colMatches[2] && colMatches[3] && colMatches[4]) {
+              return 30000; // 5 hits (whole ticket matches)
+          }
+          if (colMatches[1] && colMatches[2] && colMatches[3] && colMatches[4]) {
+              return 75; // Last 4 digits match
+          }
+          if (colMatches[2] && colMatches[3] && colMatches[4]) {
+              return 15; // Last 3 digits match
+          }
+          if (colMatches[3] && colMatches[4]) {
+              return 6; // Last 2 digits match
+          }
+          if (colMatches[4]) {
+              return 3.00; // Last digit (reintegro) matches
+          }
+          return 0;
+      }
 
       if (gId === 'euromillones') {
           if (hits === 5 && starHits === 2) return 40000000;
@@ -6130,6 +7874,8 @@ class DataLotto49Advanced {
           ticketPrice = 2.50;
       } else if (this.currentGame.id === 'gordo') {
           ticketPrice = 1.50;
+      } else if (this.currentGame.id === 'nacional') {
+          ticketPrice = 3.00;
       } else {
           if (this.dataType === 'bonoloto') {
               ticketPrice = 0.50;
@@ -6312,9 +8058,13 @@ class DataLotto49Advanced {
 }
 
 // Global instance of the app
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
   new DataLotto49Advanced();
-});
+} else {
+  document.addEventListener('DOMContentLoaded', () => {
+    new DataLotto49Advanced();
+  });
+}
 
 // FIX: Add an empty export to treat this file as a module.
 export {};

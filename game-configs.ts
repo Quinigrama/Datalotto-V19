@@ -53,5 +53,14 @@ export const GAMES: { [key: string]: GameConfig } = {
     maxStars: 1,
     starRange: 5,
     gridCols: 10
+  },
+  'nacional': {
+    id: 'nacional',
+    name: 'Lotería Nacional',
+    maxNumbers: 5,
+    numberRange: 59,
+    maxStars: 0,
+    starRange: 0,
+    gridCols: 10
   }
 };

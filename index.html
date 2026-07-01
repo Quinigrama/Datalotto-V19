@@ -16,6 +16,10 @@
     <span></span>
   </button>
 
+  <div class="app-top-title">🎲 DataLotto</div>
+
+  <button id="disclaimerBtn" title="Disclaimer Ético">⚠️</button>
+
   <nav id="sidebar" class="sidebar">
     <div class="sidebar-header">
       <h3>🎲 DataLotto Menu</h3>
@@ -26,11 +30,12 @@
       <li id="game-gordo"><a href="#" data-action="switch-game" data-game="gordo">🏆 El Gordo</a></li>
       <li id="game-euromillones"><a href="#" data-action="switch-game" data-game="euromillones">🇪🇺 Euromillones</a></li>
       <li id="game-eurodreams"><a href="#" data-action="switch-game" data-game="eurodreams">🌙 EuroDreams</a></li>
+      <li id="game-nacional"><a href="#" data-action="switch-game" data-game="nacional">🇪🇸 Lotería Nacional</a></li>
       <li class="divider"></li>
       <li><a href="#" id="configUrlsBtn">🔗 Enlaces a URLs</a></li>
       <li><a href="#" id="filtersDashboardBtn">📊 Filtros de Juego</a></li>
       <li><a href="#" id="contactBtn">✉️ Contacto</a></li>
-      <li><a href="#" class="disabled">❓ Tutorial</a></li>
+      <li><a href="#" id="helpModeBtn">❓ Modo Ayuda</a></li>
       <li><a href="#" class="disabled">🌐 Idioma (ES)</a></li>
     </ul>
     <div class="sidebar-footer">
@@ -40,11 +45,8 @@
 
   <div class="container" id="mainAppContainer">
     <header class="header">
-      <h1>🎲 DataLotto49</h1>
+      <h1>Bonoloto 6/49</h1>
       <p>Generador Inteligente con Arquitectura Matemática Avanzada</p>
-      <div class="header-actions">
-        <button class="header-btn" id="disclaimerBtn" title="Disclaimer Ético">⚠️</button>
-      </div>
     </header>
 
     <div class="selected-numbers">
@@ -119,6 +121,19 @@
     <!-- Analizador Estadístico -->
     <div class="data-analysis-section">
       <h3>📊 Analizador Estadístico Base</h3>
+      
+      <!-- Selector de Tipo de Sorteo para Lotería Nacional -->
+      <div id="nacionalDrawFilterContainer" style="display: none; margin-bottom: 15px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+        <span style="font-weight: 600; font-size: 0.9rem; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+          <span>🗳️</span> Sorteos a estudiar:
+        </span>
+        <select id="nacionalDrawFilterSelect" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #93c5fd; background: #ffffff; color: #1e3a8a; font-weight: 600; font-size: 0.85rem; outline: none; cursor: pointer;">
+          <option value="all">🌐 Todos los Sorteos (Completo)</option>
+          <option value="navidad">🎄 Sorteo Extraordinario de Navidad (22 Dic)</option>
+          <option value="nino">👶 Sorteo Extraordinario de El Niño (6 Ene)</option>
+        </select>
+      </div>
+
       <div class="data-info" id="dataInfo">
         No hay datos cargados. Carga una base de datos CSV/DB o simula datos históricos.
       </div>
@@ -326,6 +341,7 @@
             </div>
             <div class="collapsible-inner">
                 <div class="filters-panel">
+                    <div id="standardFiltersContainer">
                     
                     <!-- GRUPO: Excluir Terminaciones -->
                     <div class="filter-group" title="Excluye cualquier combinación que contenga un número terminado en los dígitos seleccionados.">
@@ -621,6 +637,293 @@
                             <b>Markov:</b> Analiza secuencias. <b>Nash:</b> Favorece números menos populares. <b>Regresión:</b> Apuesta por números 'atrasados'.
                         </div>
                     </div>
+                    </div> <!-- End of standardFiltersContainer -->
+                    
+                    <!-- NACIONAL FILTERS CONTAINER -->
+                    <div id="nacionalFiltersContainer" style="display: none; width: 100%;">
+                        <!-- SECCIÓN A: Filtros sobre el número completo (0-99999) -->
+                        <div style="grid-column: 1 / -1; margin-top: 10px; margin-bottom: 12px; font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; color: var(--primary); font-size: 1.05rem;">
+                            🅰️ Filtros del Número Completo (00000 - 99999)
+                        </div>
+
+                        <!-- 1. Suma de dígitos -->
+                        <div class="filter-group" title="Suma de los 5 dígitos individuales (rango 0 a 45).">
+                            <div class="filter-title">🎯 Suma de Dígitos (0-45)</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalSumaDigitosMin" value="15" min="0" max="45" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalSumaDigitosMax" value="30" min="0" max="45" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                            <div class="validation-error" id="nacionalSumaDigitosError">El mínimo no puede ser mayor que el máximo</div>
+                        </div>
+
+                        <!-- 2. Capicúa -->
+                        <div class="filter-group" title="Filtra si el número leído al revés es igual (ABCBA).">
+                            <div class="filter-title">🔄 Capicúa (Palíndromo)</div>
+                            <select id="nacionalCapicua" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="yes">Sí (Ej: 12321)</option>
+                                <option value="no">No (Normal)</option>
+                            </select>
+                        </div>
+
+                        <!-- 3. Primalidad -->
+                        <div class="filter-group" title="Comprueba si el valor entero de 5 cifras es un número primo.">
+                            <div class="filter-title">🔢 Número Completo Primo</div>
+                            <select id="nacionalPrimo" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="yes">Es Primo</option>
+                                <option value="no">No es Primo</option>
+                            </select>
+                        </div>
+
+                        <!-- 4. Cuadrado / Cubo perfecto -->
+                        <div class="filter-group" title="Comprueba si el número es un cuadrado o cubo perfecto.">
+                            <div class="filter-title">📐 Cuadrado / Cubo Perfecto</div>
+                            <select id="nacionalCuadradoCubo" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="yes">Sí es Cuadrado/Cubo</option>
+                                <option value="no">No lo es</option>
+                            </select>
+                        </div>
+
+                        <!-- 5. Repdigits -->
+                        <div class="filter-group" title="Números con los 5 dígitos iguales (00000, 11111, ..., 99999).">
+                            <div class="filter-title">👯 Repdigits (5 Cifras Iguales)</div>
+                            <select id="nacionalRepdigits" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="yes">Sí (Ej: 33333)</option>
+                                <option value="no">No (Evitar repdigits)</option>
+                            </select>
+                        </div>
+
+                        <!-- 6. Múltiplo de N -->
+                        <div class="filter-group" title="Filtra números divisibles por el divisor N configurado.">
+                            <div class="filter-title">➗ Múltiplo de N (Divisor)</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 0.85rem; color: #475569;">Múltiplo de:</span>
+                                <input type="number" id="nacionalMultiploDe" value="1" min="1" max="999" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Utiliza 1 para desactivar este filtro.</div>
+                        </div>
+
+                        <!-- 7. Rango por franja -->
+                        <div class="filter-group" title="Filtra por franja de decenas de millar/millares (00000-99999).">
+                            <div class="filter-title">📊 Rango por Franja</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalFranjaMin" value="0" min="0" max="99999" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalFranjaMax" value="99999" min="0" max="99999" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                            <div class="validation-error" id="nacionalFranjaError">Rango inválido (0 - 99999)</div>
+                        </div>
+
+                        <!-- 8. Distancia a número objetivo -->
+                        <div class="filter-group" title="Compara la distancia absoluta (diferencia) respecto a un número marcado.">
+                            <div class="filter-title">🎯 Distancia a Número Objetivo</div>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 0.8rem; color: #475569;">Objetivo:</span>
+                                    <input type="text" id="nacionalObjetivo" value="00000" maxlength="5" placeholder="Ej: 54321" style="width: 75px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px; font-family: monospace; text-align: center;">
+                                </div>
+                                <div class="range-control" style="margin-top: 4px;">
+                                    <input type="number" id="nacionalDistanciaObjetivoMin" value="0" min="0" max="99999" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                    <span>a</span>
+                                    <input type="number" id="nacionalDistanciaObjetivoMax" value="99999" min="0" max="99999" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN B: Filtros sobre los dígitos — POR POSICIÓN (orden importa) -->
+                        <div style="grid-column: 1 / -1; margin-top: 20px; margin-bottom: 12px; font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; color: var(--primary); font-size: 1.05rem;">
+                            🅱️ Filtros por Posición de Cifra (D1...D5)
+                        </div>
+
+                        <!-- 9. Paridad por posición -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Define si cada dígito (D1 a D5) debe ser Par o Impar de forma individual.">
+                            <div class="filter-title">⚖️ Paridad por Posición (D1 a D5)</div>
+                            <div style="display: flex; gap: 6px; justify-content: space-between; overflow-x: auto; padding: 4px 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D1</span>
+                                    <select id="nacionalParidadD1" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="par">Par</option><option value="imp">Impar</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D2</span>
+                                    <select id="nacionalParidadD2" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="par">Par</option><option value="imp">Impar</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D3</span>
+                                    <select id="nacionalParidadD3" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="par">Par</option><option value="imp">Impar</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D4</span>
+                                    <select id="nacionalParidadD4" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="par">Par</option><option value="imp">Impar</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D5</span>
+                                    <select id="nacionalParidadD5" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="par">Par</option><option value="imp">Impar</option></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 10. Alto/bajo por posición -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Define si cada dígito (D1 a D5) debe ser Bajo (0-4) o Alto (5-9) de forma individual.">
+                            <div class="filter-title">📈 Alto/Bajo por Posición (D1 a D5)</div>
+                            <div style="display: flex; gap: 6px; justify-content: space-between; overflow-x: auto; padding: 4px 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D1</span>
+                                    <select id="nacionalAltoBajoD1" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="bajo">Bajo</option><option value="alto">Alto</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D2</span>
+                                    <select id="nacionalAltoBajoD2" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="bajo">Bajo</option><option value="alto">Alto</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D3</span>
+                                    <select id="nacionalAltoBajoD3" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="bajo">Bajo</option><option value="alto">Alto</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D4</span>
+                                    <select id="nacionalAltoBajoD4" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="bajo">Bajo</option><option value="alto">Alto</option></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <span style="font-size: 0.75rem; font-weight: bold; color: #64748b;">D5</span>
+                                    <select id="nacionalAltoBajoD5" class="form-select" style="font-size: 0.8rem; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; width: 100%;"><option value="any">Cualq.</option><option value="bajo">Bajo</option><option value="alto">Alto</option></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 11. Secuencias consecutivas -->
+                        <div class="filter-group" title="Detecta secuencias de dígitos consecutivos de forma ascendente (12345) o descendente (98765).">
+                            <div class="filter-title">🔗 Secuencias Consecutivas</div>
+                            <select id="nacionalConsecutivos" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="yes_asc">Exigir Ascendente (Ej: 12345)</option>
+                                <option value="yes_desc">Exigir Descendente (Ej: 98765)</option>
+                                <option value="any_consec">Exigir cualquiera de las dos</option>
+                                <option value="no">Evitar números totalmente consecutivos</option>
+                            </select>
+                        </div>
+
+                        <!-- 12. Suma de mitades -->
+                        <div class="filter-group" title="Compara la suma de la primera mitad (D1+D2) contra la segunda mitad (D4+D5).">
+                            <div class="filter-title">⚖️ Suma de Mitades (D1+D2 vs D4+D5)</div>
+                            <select id="nacionalSumaMitades" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; background: white;">
+                                <option value="all">Indiferente</option>
+                                <option value="equal">Suma Mitad 1 = Suma Mitad 2</option>
+                                <option value="greater">Suma Mitad 1 &gt; Suma Mitad 2</option>
+                                <option value="less">Suma Mitad 1 &lt; Suma Mitad 2</option>
+                            </select>
+                        </div>
+
+                        <!-- SECCIÓN C: Filtros sobre los dígitos — POR CONTEO (orden NO importa) -->
+                        <div style="grid-column: 1 / -1; margin-top: 20px; margin-bottom: 12px; font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; color: var(--primary); font-size: 1.05rem;">
+                            🆃 Filtros por Conteo de Dígitos (Orden libre)
+                        </div>
+
+                        <!-- 13. Pares/Impares por conteo -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Filtra por la cantidad exacta de dígitos pares e impares.">
+                            <div class="filter-title">⚖️ Pares/Impares por Conteo (Selecciona categorías)</div>
+                            <div class="filter-options" id="nacionalParesConteoOptions">
+                                <div class="filter-chip active" data-value="5P/0I">5P/0I</div>
+                                <div class="filter-chip active" data-value="4P/1I">4P/1I</div>
+                                <div class="filter-chip active" data-value="3P/2I">3P/2I</div>
+                                <div class="filter-chip active" data-value="2P/3I">2P/3I</div>
+                                <div class="filter-chip active" data-value="1P/4I">1P/4I</div>
+                                <div class="filter-chip active" data-value="0P/5I">0P/5I</div>
+                            </div>
+                        </div>
+
+                        <!-- 14. Altos/Bajos por conteo -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Filtra por la cantidad exacta de dígitos altos (5-9) y bajos (0-4).">
+                            <div class="filter-title">📈 Altos/Bajos por Conteo (Selecciona categorías)</div>
+                            <div class="filter-options" id="nacionalAltosConteoOptions">
+                                <div class="filter-chip active" data-value="5A/0B">5A/0B</div>
+                                <div class="filter-chip active" data-value="4A/1B">4A/1B</div>
+                                <div class="filter-chip active" data-value="3A/2B">3A/2B</div>
+                                <div class="filter-chip active" data-value="2A/3B">2A/3B</div>
+                                <div class="filter-chip active" data-value="1A/4B">1A/4B</div>
+                                <div class="filter-chip active" data-value="0A/5B">0A/5B</div>
+                            </div>
+                        </div>
+
+                        <!-- 15. Dígitos únicos vs repetidos -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Filtra por cuántos dígitos distintos hay en total en el número (entre 1 y 5).">
+                            <div class="filter-title">🧩 Variedad de Cifras (Dígitos Distintos)</div>
+                            <div class="filter-options" id="nacionalUnicosOptions">
+                                <div class="filter-chip active" data-value="1">1 único</div>
+                                <div class="filter-chip active" data-value="2">2 dist.</div>
+                                <div class="filter-chip active" data-value="3">3 dist.</div>
+                                <div class="filter-chip active" data-value="4">4 dist.</div>
+                                <div class="filter-chip active" data-value="5">5 dist.</div>
+                            </div>
+                        </div>
+
+                        <!-- 16. Dígito moda -->
+                        <div class="filter-group" title="Frecuencia máxima del dígito que más veces se repite en el número.">
+                            <div class="filter-title">👑 Repeticiones Máximas (Moda)</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalModaRepeticionesMin" value="1" min="1" max="5" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalModaRepeticionesMax" value="5" min="1" max="5" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- 17. Presencia y conteo de ceros -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Filtra según la cantidad de ceros ('0') que contiene el número de décimo.">
+                            <div class="filter-title">🍩 Cantidad de Ceros en el Número</div>
+                            <div class="filter-options" id="nacionalCerosOptions">
+                                <div class="filter-chip active" data-value="0">0 ceros</div>
+                                <div class="filter-chip active" data-value="1">1 cero</div>
+                                <div class="filter-chip active" data-value="2">2 ceros</div>
+                                <div class="filter-chip active" data-value="3+">3+ ceros</div>
+                            </div>
+                        </div>
+
+                        <!-- 18. Primos entre los dígitos -->
+                        <div class="filter-group" title="Cuántos de los 5 dígitos individuales son números primos (2, 3, 5, 7).">
+                            <div class="filter-title">⭐ Cifras Primas (2, 3, 5, 7)</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalPrimosDigitosMin" value="0" min="0" max="5" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalPrimosDigitosMax" value="5" min="0" max="5" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- 19. Rango interno (máx-mín) -->
+                        <div class="filter-group" title="Diferencia absoluta entre el dígito de mayor y el de menor valor.">
+                            <div class="filter-title">↔️ Rango Interno (Max - Min)</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalRangoInternoMin" value="0" min="0" max="9" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalRangoInternoMax" value="9" min="0" max="9" style="width: 70px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- 20. Varianza / Desviación típica -->
+                        <div class="filter-group" title="Desviación típica de las 5 cifras individuales del boleto.">
+                            <div class="filter-title">📉 Desviación Típica Interna</div>
+                            <div class="range-control">
+                                <input type="number" id="nacionalDesviacionMin" value="0.00" min="0.00" max="4.50" step="0.01" style="width: 75px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalDesviacionMax" value="4.50" min="0.00" max="4.50" step="0.01" style="width: 75px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- 21. Entropía de Shannon de los dígitos -->
+                        <div class="filter-group" style="grid-column: 1 / -1;" title="Mide la uniformidad y rareza estructural de los dígitos del número.">
+                            <div class="filter-title">🌀 Entropía de Shannon de Dígitos</div>
+                            <div class="range-control" style="justify-content: flex-start; gap: 10px;">
+                                <input type="number" id="nacionalEntropiaDigitosMin" value="0.000" min="0.000" max="2.322" step="0.001" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                                <span>a</span>
+                                <input type="number" id="nacionalEntropiaDigitosMax" value="2.322" min="0.000" max="2.322" step="0.001" style="width: 85px; padding: 6px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px; line-height: 1.35;">
+                                💡 <strong>Nota:</strong> Mide la rareza estructural de las cifras. Los números con cifras idénticas (11111) tienen entropía <strong>0.000</strong>. Números con 5 cifras distintas (13579) alcanzan el máximo de <strong>2.322</strong>. 
+                                <span style="color: #475569; font-weight: 500;">Este es un filtro combinatorio estructural, no una garantía predictiva de acierto.</span>
+                            </div>
+                        </div>
+                    </div> <!-- End of nacionalFiltersContainer -->
                     
                     <div class="filter-actions" style="margin-top: 15px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                         <button id="saveFiltersBtn" class="strategy-btn" style="display: inline-block; width: auto; padding: 10px 20px; background: #f3f4f6; border-color: var(--primary);">
@@ -1218,6 +1521,7 @@
                   <option value="gordo">El Gordo</option>
                   <option value="euromillones">Euromillones</option>
                   <option value="eurodreams">EuroDreams</option>
+                  <option value="nacional">Lotería Nacional</option>
               </select>
           </div>
       </div>
@@ -1341,6 +1645,24 @@
         <div class="modal-actions">
             <button class="modal-btn cancel" id="closeConfigUrlsBtn">Cancelar</button>
             <button class="modal-btn confirm" id="saveConfigUrlsBtn">Guardar</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal" id="helpModal">
+    <div class="modal-content" style="max-width: 600px; border-left: 5px solid var(--primary);">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.5rem;">💡</span>
+                <span id="helpModalTitle">Explicación de Filtro</span>
+            </h3>
+            <p style="margin-top: 5px; color: var(--gray); font-size: 0.90rem;">Información detallada para ayudarte a comprender el funcionamiento.</p>
+        </div>
+        <div class="modal-body" id="helpModalBody" style="font-size: 1rem; line-height: 1.6; color: var(--dark); padding: 10px 0; text-align: left;">
+            <!-- Dinámicamente cargado -->
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn confirm" id="closeHelpModalBtn" style="background-color: var(--primary);">Entendido</button>
         </div>
     </div>
   </div>
