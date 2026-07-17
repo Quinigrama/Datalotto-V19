@@ -3,6 +3,13 @@
 // ============================================
 import { GoogleGenAI } from "@google/genai";
 import { GAMES, GameConfig } from "./game-configs";
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import firebaseConfig from './firebase-applet-config.json';
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firebaseAuth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
 
 // FIX: Added interfaces for strong typing of complex objects.
 interface Draw {
@@ -22,6 +29,7 @@ interface Ticket {
   stars?: number[][]; // Optional stars for Euromillones
   strategy: string;
   gameId: string; // NEW: To identify the game this ticket belongs to
+  systemName?: string; // Optional name of the reduced system used
   drawDate?: string; // Optional draw date for the ticket
   validation?: { // Optional validation results
     winningNumbers: number[];
@@ -85,6 +93,7 @@ interface Filters {
   nacionalRangoInterno?: { min: number; max: number };
   nacionalDesviacion?: { min: number; max: number };
   nacionalEntropiaDigitos?: { min: number; max: number };
+  aiReasoning?: string;
 }
 
 interface FilterPreset {
@@ -92,6 +101,177 @@ interface FilterPreset {
   name: string;
   date: string;
   filters: Filters;
+}
+
+// ===== SISTEMA DE APUESTAS REDUCIDAS COBERTURA MATEMÁTICA =====
+interface ReducedSystem {
+  id: string;
+  name: string;
+  baseNumbersCount: number;
+  combinationsCount: number;
+  description: string;
+}
+
+const REDUCED_SYSTEMS: { [gameId: string]: ReducedSystem[] } = {
+  bonoloto: [
+    {
+      id: 'reduced-11-3-3',
+      name: '11 Números; garantizados 3 si 3 (11 apuestas)',
+      baseNumbersCount: 11,
+      combinationsCount: 11,
+      description: 'Garantiza al menos un premio de 3 aciertos si caen 3 de los números elegidos.'
+    },
+    {
+      id: 'reduced-11-5-5',
+      name: '11 Números; garantizados 5 si 5 (66 apuestas)',
+      baseNumbersCount: 11,
+      combinationsCount: 66,
+      description: 'Garantiza al menos un premio de 5 aciertos si caen 5 de los números elegidos.'
+    },
+    {
+      id: 'reduced-12-4-4',
+      name: '12 Números; garantizados 4 si 4 (42 apuestas)',
+      baseNumbersCount: 12,
+      combinationsCount: 42,
+      description: 'Garantiza al menos un premio de 4 aciertos si caen 4 de los números elegidos.'
+    },
+    {
+      id: 'reduced-15-3-3',
+      name: '15 Números; garantizados 3 si 3 (25 apuestas)',
+      baseNumbersCount: 15,
+      combinationsCount: 25,
+      description: 'Garantiza al menos un premio de 3 aciertos si caen 3 de los números elegidos.'
+    }
+  ],
+  primitiva: [],
+  eurodreams: [
+    {
+      id: 'reduced-10-4-4',
+      name: '10 Números; garantizados 4 si 4 (14 apuestas)',
+      baseNumbersCount: 10,
+      combinationsCount: 14,
+      description: 'Garantiza al menos un premio de 4 aciertos si caen 4 de los números elegidos.'
+    },
+    {
+      id: 'reduced-12-3-3',
+      name: '12 Números; garantizados 3 si 3 (22 apuestas)',
+      baseNumbersCount: 12,
+      combinationsCount: 22,
+      description: 'Garantiza al menos un premio de 3 aciertos si caen 3 de los números elegidos.'
+    }
+  ],
+  gordo: [
+    {
+      id: 'reduced-10-4-4',
+      name: '10 Números; garantizados 4 si 4 (14 apuestas)',
+      baseNumbersCount: 10,
+      combinationsCount: 14,
+      description: 'Garantiza al menos un premio de 4 aciertos si caen 4 de los números elegidos.'
+    },
+    {
+      id: 'reduced-12-3-3',
+      name: '12 Números; garantizados 3 si 3 (20 apuestas)',
+      baseNumbersCount: 12,
+      combinationsCount: 20,
+      description: 'Garantiza al menos un premio de 3 aciertos si caen 3 de los números elegidos.'
+    }
+  ],
+  euromillones: [],
+  nacional: []
+};
+
+REDUCED_SYSTEMS.primitiva = REDUCED_SYSTEMS.bonoloto;
+REDUCED_SYSTEMS.euromillones = REDUCED_SYSTEMS.gordo;
+REDUCED_SYSTEMS.nacional = REDUCED_SYSTEMS.gordo;
+
+export function getGreedyCovering(N: number, K: number, T: number, C: number): number[][] {
+  const targets: number[][] = [];
+  function genTargets(start: number, current: number[]) {
+    if (current.length === T) {
+      targets.push([...current]);
+      return;
+    }
+    for (let i = start; i < N; i++) {
+      current.push(i);
+      genTargets(i + 1, current);
+      current.pop();
+    }
+  }
+  genTargets(0, []);
+
+  const candidates: number[][] = [];
+  function genCandidates(start: number, current: number[]) {
+    if (current.length === K) {
+      candidates.push([...current]);
+      return;
+    }
+    for (let i = start; i < N; i++) {
+      current.push(i);
+      genCandidates(i + 1, current);
+      current.pop();
+    }
+  }
+  genCandidates(0, []);
+
+  const targetMasks = targets.map(t => {
+    let mask = 0;
+    for (const num of t) mask |= (1 << num);
+    return mask;
+  });
+
+  const candidateMasks = candidates.map(c => {
+    let mask = 0;
+    for (const num of c) mask |= (1 << num);
+    return mask;
+  });
+
+  const selectedIndices: number[] = [];
+  const uncovered = new Set<number>(targetMasks.keys());
+
+  for (let step = 0; step < C; step++) {
+    let bestCandidateIdx = -1;
+    let maxCoveredCount = -1;
+
+    for (let i = 0; i < candidates.length; i++) {
+      if (selectedIndices.includes(i)) continue;
+      const cMask = candidateMasks[i];
+      let coveredCount = 0;
+      for (const tIdx of uncovered) {
+        const tMask = targetMasks[tIdx];
+        if ((cMask & tMask) === tMask) {
+          coveredCount++;
+        }
+      }
+      if (coveredCount > maxCoveredCount) {
+        maxCoveredCount = coveredCount;
+        bestCandidateIdx = i;
+      }
+    }
+
+    if (bestCandidateIdx === -1) {
+      for (let i = 0; i < candidates.length; i++) {
+        if (!selectedIndices.includes(i)) {
+          bestCandidateIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (bestCandidateIdx !== -1) {
+      selectedIndices.push(bestCandidateIdx);
+      const cMask = candidateMasks[bestCandidateIdx];
+      for (const tIdx of Array.from(uncovered)) {
+        const tMask = targetMasks[tIdx];
+        if ((cMask & tMask) === tMask) {
+          uncovered.delete(tIdx);
+        }
+      }
+    } else {
+      break;
+    }
+  }
+
+  return selectedIndices.map(idx => candidates[idx]);
 }
 
 // Clase principal de la aplicación
@@ -145,6 +325,14 @@ class DataLotto49Advanced {
     TOLERANCE_LEVELS: { [key: number]: number };
     currentGame: GameConfig;
     helpModeActive: boolean;
+    anonymousUserId: string;
+    googleAuthToken: string | null = null;
+    googleUser: User | null = null;
+    vizMode: 'heatmap' | 'ranking' = 'heatmap';
+    vizTarget: 'number' | 'star' = 'number';
+    officialDrawsPage: number = 1;
+    officialDrawsPageSize: number = 20;
+    officialDrawsSearchQuery: string = '';
 
     // New AI & Correlation UI elements
     aiPredictBtn: HTMLElement | null = null;
@@ -242,6 +430,17 @@ class DataLotto49Advanced {
   }
 
   init() {
+    onAuthStateChanged(firebaseAuth, (user) => {
+      this.googleUser = user;
+    });
+
+    let anonId = localStorage.getItem('datalotto_anon_id');
+    if (!anonId) {
+        anonId = 'usr_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem('datalotto_anon_id', anonId);
+    }
+    this.anonymousUserId = anonId;
+
     this.loadState();
     this.createNumbersGrid();
 
@@ -270,6 +469,7 @@ class DataLotto49Advanced {
     this.updateSavedTickets();
     this.updateDataAnalysis();
     this.updateFilterBadgesFromAudit();
+    this.populateReducedSystems();
     
     // Initialize Big Data with current day selected
     const daySelect = document.getElementById('nextDrawDay') as HTMLSelectElement;
@@ -288,25 +488,235 @@ class DataLotto49Advanced {
     }, 100);
   }
 
+  async sendTelemetry(eventType: string, payload: any) {
+    try {
+      await fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: this.anonymousUserId,
+          event: eventType,
+          gameId: this.currentGame.id,
+          payload: payload,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.warn('Telemetry failed:', e);
+    }
+  }
+
+  getGameIconSvg(gameId: string): string {
+    switch(gameId) {
+      case 'bonoloto':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-bonoloto" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="green-gradient-header-bonoloto" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4ade80" />
+              <stop offset="100%" stop-color="#15803d" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-bonoloto)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 20,20 C 18,25 19,30 23,34" stroke="url(#green-gradient-header-bonoloto)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-header-bonoloto)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-header-bonoloto)" transform="rotate(90 20 20)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-header-bonoloto)" transform="rotate(180 20 20)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-header-bonoloto)" transform="rotate(270 20 20)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      case 'primitiva':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-primitiva" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <radialGradient id="green-sphere-header-primitiva" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#4ade80" />
+              <stop offset="60%" stop-color="#16a34a" />
+              <stop offset="100%" stop-color="#14532d" />
+            </radialGradient>
+            <mask id="primitiva-header-mask">
+              <rect x="0" y="0" width="40" height="40" fill="#ffffff" />
+              <line x1="5" y1="13" x2="35" y2="13" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="16.5" x2="35" y2="16.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="20" x2="35" y2="20" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="23.5" x2="35" y2="23.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="27" x2="35" y2="27" stroke="#000000" stroke-width="1.5" />
+              <line x1="20" y1="5" x2="20" y2="35" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 13,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 27,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+            </mask>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-primitiva)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="11" fill="url(#green-sphere-header-primitiva)" mask="url(#primitiva-header-mask)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      case 'gordo':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-gordo" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <radialGradient id="red-sphere-header-gordo" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#fca5a5" />
+              <stop offset="60%" stop-color="#dc2626" />
+              <stop offset="100%" stop-color="#7f1d1d" />
+            </radialGradient>
+            <mask id="gordo-header-mask">
+              <rect x="0" y="0" width="40" height="40" fill="#ffffff" />
+              <line x1="5" y1="13" x2="35" y2="13" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="16.5" x2="35" y2="16.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="20" x2="35" y2="20" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="23.5" x2="35" y2="23.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="27" x2="35" y2="27" stroke="#000000" stroke-width="1.5" />
+              <line x1="20" y1="5" x2="20" y2="35" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 13,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 27,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+            </mask>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-gordo)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="11" fill="url(#red-sphere-header-gordo)" mask="url(#gordo-header-mask)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      case 'euromillones':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-euromillones" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="blue-metallic-header-euromillones" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1e40af" />
+              <stop offset="40%" stop-color="#3b82f6" />
+              <stop offset="70%" stop-color="#1d4ed8" />
+              <stop offset="100%" stop-color="#172554" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-euromillones)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="12.5" stroke="url(#blue-metallic-header-euromillones)" stroke-width="2.2" fill="none" />
+          <circle cx="20" cy="20" r="7.5" stroke="url(#blue-metallic-header-euromillones)" stroke-width="1.2" fill="none" />
+          <g transform="translate(20, 10)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(29.5, 16.9)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(25.9, 28.1)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(14.1, 28.1)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(10.5, 16.9)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.12)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      case 'eurodreams':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-eurodreams" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-eurodreams)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <g transform="rotate(0 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#c084fc" /></g>
+          <g transform="rotate(36 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#60a5fa" /></g>
+          <g transform="rotate(72 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#34d399" /></g>
+          <g transform="rotate(108 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#fb923c" /></g>
+          <g transform="rotate(144 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#f43f5e" /></g>
+          <g transform="rotate(180 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#c084fc" /></g>
+          <g transform="rotate(216 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#60a5fa" /></g>
+          <g transform="rotate(252 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#34d399" /></g>
+          <g transform="rotate(288 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#fb923c" /></g>
+          <g transform="rotate(324 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#f43f5e" /></g>
+          <circle cx="20" cy="20" r="2.2" fill="#ffffff" />
+          <circle cx="20" cy="6" r="0.6" fill="#ffffff" />
+          <circle cx="20" cy="34" r="0.6" fill="#ffffff" />
+          <circle cx="6" cy="20" r="0.6" fill="#ffffff" />
+          <circle cx="34" cy="20" r="0.6" fill="#ffffff" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      case 'nacional':
+        return `
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-header-nacional" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="blue-flat-header-nacional" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#3b82f6" />
+              <stop offset="100%" stop-color="#1d4ed8" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-header-nacional)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="18" r="10" fill="url(#blue-flat-header-nacional)" />
+          <g stroke="rgba(255,255,255,0.75)" stroke-width="0.8" fill="none">
+            <line x1="20" y1="8" x2="20" y2="28" />
+            <path d="M 13.5,11 A 10,10 0 0,0 13.5,25" />
+            <path d="M 17,8.5 A 10,10 0 0,0 17,27.5" />
+            <path d="M 23,8.5 A 10,10 0 0,1 23,27.5" />
+            <path d="M 26.5,11 A 10,10 0 0,1 26.5,25" />
+          </g>
+          <line x1="8" y1="18" x2="32" y2="18" stroke="url(#blue-flat-header-nacional)" stroke-width="2" stroke-linecap="round" />
+          <rect x="18.5" y="26.5" width="3" height="3" fill="url(#blue-flat-header-nacional)" />
+          <path d="M 15,29 L 25,29 L 27,34 C 27,34 26,34 25,34 L 15,34 C 14,34 13,34 13,34 Z" fill="url(#blue-flat-header-nacional)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        `;
+      default:
+        return `🎲`;
+    }
+  }
+
   updateHeaderTitle() {
     const headerTitle = document.querySelector('.header h1');
     if (headerTitle) {
         const gameId = this.currentGame.id;
+        const iconSvg = this.getGameIconSvg(gameId);
+        let titleText = '';
         if (gameId === 'bonoloto') {
-            headerTitle.textContent = 'Bonoloto 6/49';
+            titleText = 'Bonoloto 6/49';
         } else if (gameId === 'primitiva') {
-            headerTitle.textContent = 'La Primitiva 6/49';
+            titleText = 'La Primitiva 6/49';
         } else if (gameId === 'euromillones') {
-            headerTitle.textContent = 'Euromillones 5/50 ⭐2/12';
+            titleText = 'Euromillones 5/50 ⭐2/12';
         } else if (gameId === 'eurodreams') {
-            headerTitle.textContent = 'EuroDreams 6/40 🌙1/5';
+            titleText = 'EuroDreams 6/40 🌙1/5';
         } else if (gameId === 'gordo') {
-            headerTitle.textContent = 'El Gordo 5/54 🔑1/10';
+            titleText = 'El Gordo 5/54 🔑1/10';
         } else if (gameId === 'nacional') {
-            headerTitle.textContent = 'Lotería Nacional';
+            titleText = 'Lotería Nacional';
         } else {
-            headerTitle.textContent = '🎲 DataLotto';
+            titleText = 'DataLotto';
         }
+        headerTitle.innerHTML = `${iconSvg} <span>${titleText}</span>`;
     }
   }
 
@@ -1666,6 +2076,7 @@ class DataLotto49Advanced {
 
       this.filterPresets.push(newPreset);
       this.saveState();
+      this.sendTelemetry('save_filter', { name: name });
       this.toggleModal('saveFilterModal', false);
       this.showToast(`✅ Filtro "${name}" guardado correctamente.`, 'success');
   }
@@ -1884,6 +2295,7 @@ class DataLotto49Advanced {
           this.updateGridNumberStates();
 
           // 5. Mostrar razonamiento de forma premium en el panel
+          this.filters.aiReasoning = recommended.reasoning;
           const block = document.getElementById('aiReasoningBlock');
           const text = document.getElementById('aiReasoningText');
           if (block && text && recommended.reasoning) {
@@ -2119,6 +2531,19 @@ class DataLotto49Advanced {
       setVal('nacionalEntropiaDigitosMin', this.filters.nacionalEntropiaDigitos?.min ?? 0.000);
       setVal('nacionalEntropiaDigitosMax', this.filters.nacionalEntropiaDigitos?.max ?? 2.322);
     }
+
+    // Update AI reasoning block based on current filter state
+    const block = document.getElementById('aiReasoningBlock');
+    const text = document.getElementById('aiReasoningText');
+    if (block && text) {
+      if (this.filters.aiReasoning) {
+        text.textContent = this.filters.aiReasoning;
+        block.style.display = 'block';
+      } else {
+        text.textContent = '';
+        block.style.display = 'none';
+      }
+    }
   }
 
   // ===== DATOS HISTÓRICOS (Sin cambios) =====
@@ -2127,18 +2552,36 @@ class DataLotto49Advanced {
       this.simulateHistoricalData(500);
     }
   }
-  simulateHistoricalData(numDraws = 500) {
+  simulateHistoricalData(numDraws = 500, append = false) {
     this.showFilterSpinner();
-    this.historicalData = [];
-    const baseDate = new Date();
-    baseDate.setDate(baseDate.getDate() - numDraws * 3.5);
+    
+    if (!append) {
+      this.historicalData = [];
+    }
 
-    for(let i = 0; i < numDraws; i++) {
+    const currentCount = this.historicalData.length;
+    if (currentCount >= 10000) {
+      this.showToast('⚠️ Límite de 10.000 sorteos alcanzado para mantener un alto rendimiento.', 'warning');
+      this.hideFilterSpinner();
+      return;
+    }
+
+    const actualDrawsToSimulate = Math.min(numDraws, 10000 - currentCount);
+    const baseDate = new Date();
+    
+    if (append && currentCount > 0) {
+      const lastDate = new Date(this.historicalData[currentCount - 1].date);
+      baseDate.setTime(lastDate.getTime());
+    } else {
+      baseDate.setDate(baseDate.getDate() - actualDrawsToSimulate * 3.5);
+    }
+
+    for(let i = 0; i < actualDrawsToSimulate; i++) {
       const drawDate = new Date(baseDate);
       drawDate.setDate(drawDate.getDate() + (i * 3.5));
       const { numbers, stars, complementario, reintegro } = this.generateRealisticDraw();
       this.historicalData.push({
-        id: i + 1,
+        id: currentCount + i + 1,
         date: drawDate,
         numbers: this.currentGame.id === 'nacional' ? numbers : numbers.sort((a, b) => a - b),
         stars: stars ? stars.sort((a, b) => a - b) : undefined,
@@ -2155,7 +2598,12 @@ class DataLotto49Advanced {
     this.updateGridNumberStates();
     this.updateBigDataPanel(); // NEW
     this.saveState();
-    this.showToast('✅ Datos simulados generados correctamente', 'success');
+    
+    if (append) {
+      this.showToast(`✅ Se han sumado ${actualDrawsToSimulate} sorteos más. Total: ${this.historicalData.length} sorteos.`, 'success');
+    } else {
+      this.showToast(`✅ Datos simulados generados correctamente: ${actualDrawsToSimulate} sorteos`, 'success');
+    }
     this.hideFilterSpinner();
   }
   generateRealisticDraw(): { numbers: number[], stars?: number[], complementario?: number, reintegro?: number } {
@@ -3238,15 +3686,23 @@ class DataLotto49Advanced {
   }
 
   classifyNumbers() {
+    this.hotNumbers.clear();
+    this.coldNumbers.clear();
+    this.absentNumbers.clear();
+    this.hotStars.clear();
+    this.coldStars.clear();
+    this.absentStars.clear();
+
+    if (this.historicalData.length === 0) {
+      return;
+    }
+
     const startNum = this.currentGame.id === 'nacional' ? 10 : 1;
     // Classify Numbers
     const freqs = Object.values(this.numberStats).map(s => s.frequency);
     const sortedFreqs = [...freqs].sort((a, b) => a - b);
     const hotThreshold = sortedFreqs[Math.floor(sortedFreqs.length * 0.7)];
     const coldThreshold = sortedFreqs[Math.floor(sortedFreqs.length * 0.3)];
-    this.hotNumbers.clear();
-    this.coldNumbers.clear();
-    this.absentNumbers.clear();
     
     for (let num = startNum; num <= this.currentGame.numberRange; num++) {
       const freq = this.numberStats[num] ? this.numberStats[num].frequency : 0;
@@ -3260,9 +3716,6 @@ class DataLotto49Advanced {
         const sortedStarFreqs = [...starFreqs].sort((a, b) => a - b);
         const hotStarThreshold = sortedStarFreqs[Math.floor(sortedStarFreqs.length * 0.7)];
         const coldStarThreshold = sortedStarFreqs[Math.floor(sortedStarFreqs.length * 0.3)];
-        this.hotStars.clear();
-        this.coldStars.clear();
-        this.absentStars.clear();
 
         for (let star = 1; star <= this.currentGame.starRange; star++) {
             const freq = this.starStats[star] ? this.starStats[star].frequency : 0;
@@ -3313,6 +3766,13 @@ class DataLotto49Advanced {
       const ball = document.querySelector(`.number-ball[data-number="${i}"][data-type="number"]`);
       if (ball) {
         ball.classList.remove('hot', 'cold', 'absent', 'suggested', 'favorite', 'excluded');
+        
+        if (this.selectedNumbers.has(i)) {
+          ball.classList.add('selected');
+        } else {
+          ball.classList.remove('selected');
+        }
+
         const icon = ball.querySelector('.number-icon');
         if (!icon) continue;
 
@@ -3361,6 +3821,13 @@ class DataLotto49Advanced {
             const ball = document.querySelector(`.number-ball[data-number="${i}"][data-type="star"]`);
             if (ball) {
                 ball.classList.remove('hot', 'cold', 'absent', 'suggested', 'favorite', 'excluded');
+                
+                if (this.selectedStars.has(i)) {
+                    ball.classList.add('selected');
+                } else {
+                    ball.classList.remove('selected');
+                }
+
                 const icon = ball.querySelector('.number-icon');
                 if (!icon) continue;
 
@@ -3488,6 +3955,148 @@ class DataLotto49Advanced {
     }
   }
 
+  populateReducedSystems() {
+    const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+    if (!select) return;
+    
+    select.innerHTML = '';
+    const systems = REDUCED_SYSTEMS[this.currentGame.id] || [];
+    
+    if (systems.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No hay sistemas reducidos para este juego';
+      select.appendChild(option);
+      this.updateReducedSystemInfo();
+      return;
+    }
+    
+    systems.forEach(system => {
+      const option = document.createElement('option');
+      option.value = system.id;
+      option.textContent = system.name;
+      select.appendChild(option);
+    });
+    
+    this.updateReducedSystemInfo();
+  }
+  
+  updateReducedSystemInfo() {
+    const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+    const infoTitle = document.getElementById('reducedSystemInfoTitle');
+    const infoDesc = document.getElementById('reducedSystemInfoDesc');
+    
+    if (!select || !infoTitle || !infoDesc) return;
+    
+    const gameId = this.currentGame.id;
+    const systems = REDUCED_SYSTEMS[gameId] || [];
+    const selectedId = select.value;
+    const system = systems.find(s => s.id === selectedId);
+    
+    if (!system) {
+      infoTitle.textContent = 'Sin sistema seleccionado';
+      infoDesc.textContent = 'Selecciona un sistema de reducción de la lista superior.';
+      this.updateSelectionTitle();
+      return;
+    }
+    
+    infoTitle.textContent = `📋 Garantías: ${system.name}`;
+    infoDesc.innerHTML = `
+      <strong>${system.description}</strong><br/>
+      • Números base requeridos: <span style="color: var(--primary); font-weight: bold;">${system.baseNumbersCount}</span><br/>
+      • Apuestas simples generadas: <span style="color: #0284c7; font-weight: bold;">${system.combinationsCount}</span><br/>
+      • Ahorro vs Combinaciones Múltiples: <span style="color: #16a34a; font-weight: bold;">${Math.round((1 - (system.combinationsCount / this.getMultipleCombinationsCount(system.baseNumbersCount))) * 100)}%</span>
+    `;
+    this.updateSelectionTitle();
+  }
+
+  getMultipleCombinationsCount(n: number): number {
+    const k = this.currentGame.maxNumbers;
+    let result = 1;
+    for (let i = 1; i <= k; i++) {
+      result *= (n - i + 1);
+      result /= i;
+    }
+    return Math.round(result);
+  }
+
+  updateSelectionTitle() {
+    const selectionTitle = document.getElementById('selectionTitle');
+    if (!selectionTitle) return;
+    
+    const strategy = (document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement)?.dataset.strategy || 'simple';
+    if (strategy === 'reducida') {
+      const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+      const gameId = this.currentGame.id;
+      const systems = REDUCED_SYSTEMS[gameId] || [];
+      const selectedId = select?.value;
+      const system = systems.find(s => s.id === selectedId);
+      if (system) {
+        selectionTitle.textContent = `Marca exactamente ${system.baseNumbersCount} números base (Sistema Reducido)`;
+        return;
+      }
+    }
+    
+    selectionTitle.textContent = `Selección de números (${this.currentGame.name})`;
+  }
+
+  selectAiBase() {
+    const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+    const gameId = this.currentGame.id;
+    const systems = REDUCED_SYSTEMS[gameId] || [];
+    const selectedId = select?.value;
+    const system = systems.find(s => s.id === selectedId);
+    
+    if (!system) {
+      this.showToast('Selecciona un sistema reducido válido primero.', 'warning');
+      return;
+    }
+    
+    const countNeeded = system.baseNumbersCount;
+    this.clearSelections(false);
+    
+    const hasData = this.numberStats && Object.values(this.numberStats).some(stat => stat.frequency > 0);
+    
+    let selectedList: number[] = [];
+    if (hasData) {
+      const sortedNumbers = Object.keys(this.numberStats)
+        .map(num => parseInt(num))
+        .sort((a, b) => {
+          const scoreA = this.numberStats[a]?.score || 0;
+          const scoreB = this.numberStats[b]?.score || 0;
+          const freqA = this.numberStats[a]?.frequency || 0;
+          const freqB = this.numberStats[b]?.frequency || 0;
+          return (scoreB + freqB) - (scoreA + freqA);
+        });
+      selectedList = sortedNumbers.slice(0, countNeeded);
+      this.showToast(`✨ Seleccionados los ${countNeeded} mejores números base según estadísticas históricas.`, 'success');
+    } else {
+      const range = this.currentGame.numberRange;
+      const isNacional = this.currentGame.id === 'nacional';
+      const startNum = isNacional ? 10 : 1;
+      
+      const pool: number[] = [];
+      for (let i = startNum; i <= range; i++) pool.push(i);
+      
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      
+      selectedList = pool.slice(0, countNeeded);
+      this.showToast(`✨ Generados ${countNeeded} números base equilibrados (Carga datos para un análisis estadístico real).`, 'info');
+    }
+    
+    selectedList.forEach(num => {
+      this.selectedNumbers.add(num);
+    });
+    
+    this.updateGridNumberStates();
+    this.updateSelectedDisplay();
+    this.updateStats();
+    this.updateCorrelationScore();
+  }
+
   switchGame(gameId: string) {
     if (!GAMES[gameId]) return;
     
@@ -3526,7 +4135,9 @@ class DataLotto49Advanced {
     this.updateGridNumberStates();
     this.updateDataAnalysis();
     this.updateFilterBadgesFromAudit();
+    this.populateReducedSystems();
     this.closeSidebar();
+    this.showMainApp();
     
     // Save state to persist game choice
     this.saveState();
@@ -3550,18 +4161,31 @@ class DataLotto49Advanced {
         }
     }
     
-    // 1. Hide/show Múltiple strategy button
+    // 1. Hide/show Múltiple and Reducida strategy buttons
     const multipleBtn = document.querySelector('.strategy-btn[data-strategy="multiple"]') as HTMLElement;
+    const reducedBtn = document.querySelector('.strategy-btn[data-strategy="reducida"]') as HTMLElement;
+    const activeStratBtn = document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement;
+    
     if (multipleBtn) {
         if (gameId === 'nacional') {
             multipleBtn.style.display = 'none';
-            // Reset to 'simple' strategy if active strategy was 'multiple'
-            const activeStratBtn = document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement;
-            if (activeStratBtn && activeStratBtn.dataset.strategy === 'multiple') {
-                this.updateStrategyUI('simple');
-            }
         } else {
             multipleBtn.style.display = '';
+        }
+    }
+    
+    if (reducedBtn) {
+        if (gameId === 'nacional') {
+            reducedBtn.style.display = 'none';
+        } else {
+            reducedBtn.style.display = '';
+        }
+    }
+
+    if (gameId === 'nacional' && activeStratBtn) {
+        const activeStrategy = activeStratBtn.dataset.strategy;
+        if (activeStrategy === 'multiple' || activeStrategy === 'reducida') {
+            this.updateStrategyUI('simple');
         }
     }
     
@@ -3951,15 +4575,25 @@ class DataLotto49Advanced {
             this.randomSelect();
         } else if (btn.id === 'clearBtn') {
             this.clearSelections(true);
+            this.historicalData = [];
+            this.dataLoaded = false;
+            this.dataType = 'none';
+            this.updateDataAnalysis();
+            this.analyzeNumbers();
+            this.updateGridNumberStates();
+            this.updateBigDataPanel();
+            this.saveState();
+            
             const clearBtn = document.getElementById('clearBtn');
             if (clearBtn) {
               clearBtn.classList.add('shake');
               setTimeout(() => clearBtn.classList.remove('shake'), 500);
             }
+            this.showToast('🗑️ Se han borrado todos los datos históricos y las selecciones.', 'info');
         } else if (btn.id === 'dataBtn') {
             document.getElementById('fileInput')?.click();
         } else if (btn.id === 'simulateBtn') {
-            this.simulateHistoricalData(500);
+            this.simulateHistoricalData(500, this.dataType === 'simulated' && this.historicalData.length > 0);
         } else if (btn.id === 'urlBtn') {
             this.loadDataFromUrl();
         }
@@ -3980,6 +4614,16 @@ class DataLotto49Advanced {
     document.getElementById('saveBtn')?.addEventListener('click', () => this.saveTicket());
     document.getElementById('shareBtn')?.addEventListener('click', () => this.shareTicket());
     document.getElementById('playOnlineBtn')?.addEventListener('click', () => this.playTicketOnline(this.currentTicket!));
+    document.getElementById('reducedSystemSelect')?.addEventListener('change', () => {
+        this.updateReducedSystemInfo();
+    });
+    document.getElementById('reducedAiBaseBtn')?.addEventListener('click', () => {
+        this.selectAiBase();
+    });
+    document.getElementById('reducedClearBaseBtn')?.addEventListener('click', () => {
+        this.clearSelections(false);
+        this.showToast('🗑️ Se han borrado las selecciones de base del sistema reducido.', 'info');
+    });
     document.querySelector('.filters-panel')?.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
         if (target.type === 'range') {
@@ -4102,6 +4746,167 @@ class DataLotto49Advanced {
     document.getElementById('filtersDashboardBtn')?.addEventListener('click', (e) => {
         e.preventDefault();
         this.showFiltersDashboard();
+    });
+
+    document.getElementById('historyOfResultsBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showHistoryOfResults();
+    });
+
+    document.getElementById('sidebarOfficialDrawsBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showOfficialDrawsModal();
+    });
+
+    document.getElementById('officialDrawsCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('officialDrawsModal', false);
+    });
+
+    document.getElementById('officialDrawsConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('officialDrawsModal', false);
+    });
+
+    document.getElementById('officialDrawsPrevBtn')?.addEventListener('click', () => {
+        if (this.officialDrawsPage > 1) {
+            this.officialDrawsPage--;
+            this.updateOfficialDrawsTable();
+        }
+    });
+
+    document.getElementById('officialDrawsNextBtn')?.addEventListener('click', () => {
+        this.officialDrawsPage++;
+        this.updateOfficialDrawsTable();
+    });
+
+    document.getElementById('officialDrawsSearchInput')?.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        this.officialDrawsSearchQuery = target.value;
+        this.officialDrawsPage = 1;
+        this.updateOfficialDrawsTable();
+    });
+
+    document.getElementById('officialDrawsSearchClearBtn')?.addEventListener('click', () => {
+        const searchInput = document.getElementById('officialDrawsSearchInput') as HTMLInputElement;
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        this.officialDrawsSearchQuery = '';
+        this.officialDrawsPage = 1;
+        this.updateOfficialDrawsTable();
+    });
+
+    document.getElementById('sidebarVizBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSidebar();
+        this.toggleModal('dataVizModal', true);
+        this.renderFrequencyChart();
+    });
+
+    document.getElementById('sidebarBigDataBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showBigDataIntelligence();
+    });
+
+    document.getElementById('bigdataCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('bigdataModal', false);
+    });
+
+    document.getElementById('bigdataConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('bigdataModal', false);
+    });
+
+    document.getElementById('dataVizCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('dataVizModal', false);
+    });
+
+    document.getElementById('dataVizConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('dataVizModal', false);
+    });
+
+    document.getElementById('sidebarBacktestingBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSidebar();
+        this.toggleModal('backtestingModal', true);
+        this.updateBacktestUI();
+    });
+
+    document.getElementById('backtestingCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('backtestingModal', false);
+    });
+
+    document.getElementById('backtestingConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('backtestingModal', false);
+    });
+
+    document.getElementById('sidebarSavedTicketsBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSidebar();
+        this.toggleModal('savedTicketsModal', true);
+        this.updateSavedTickets();
+    });
+
+    document.getElementById('savedTicketsCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('savedTicketsModal', false);
+    });
+
+    document.getElementById('savedTicketsConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('savedTicketsModal', false);
+    });
+
+    document.getElementById('sidebarJackpotsBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSidebar();
+        this.toggleModal('jackpotsModal', true);
+        this.fetchAndRenderJackpots();
+    });
+
+    document.getElementById('jackpotsCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('jackpotsModal', false);
+    });
+
+    document.getElementById('jackpotsConfirmCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('jackpotsModal', false);
+    });
+
+    document.getElementById('jackpotsRefreshBtn')?.addEventListener('click', () => {
+        this.fetchAndRenderJackpots(true);
+    });
+
+
+
+    document.getElementById('vizModeHeatmapBtn')?.addEventListener('click', () => {
+        this.vizMode = 'heatmap';
+        document.getElementById('vizModeHeatmapBtn')?.classList.add('active');
+        document.getElementById('vizModeHeatmapBtn')?.setAttribute('style', 'border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: var(--primary); color: white;');
+        document.getElementById('vizModeRankingBtn')?.classList.remove('active');
+        document.getElementById('vizModeRankingBtn')?.setAttribute('style', 'border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: transparent; color: #475569;');
+        this.renderFrequencyChart();
+    });
+
+    document.getElementById('vizModeRankingBtn')?.addEventListener('click', () => {
+        this.vizMode = 'ranking';
+        document.getElementById('vizModeRankingBtn')?.classList.add('active');
+        document.getElementById('vizModeRankingBtn')?.setAttribute('style', 'border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: var(--primary); color: white;');
+        document.getElementById('vizModeHeatmapBtn')?.classList.remove('active');
+        document.getElementById('vizModeHeatmapBtn')?.setAttribute('style', 'border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: transparent; color: #475569;');
+        this.renderFrequencyChart();
+    });
+
+    document.getElementById('vizTargetSelect')?.addEventListener('change', (e) => {
+        this.vizTarget = (e.target as HTMLSelectElement).value as 'number' | 'star';
+        this.renderFrequencyChart();
+    });
+
+    document.getElementById('hrCloseBtn')?.addEventListener('click', () => {
+        this.toggleModal('historyOfResultsModal', false);
+    });
+
+    document.getElementById('hrCloseBtn2')?.addEventListener('click', () => {
+        this.toggleModal('historyOfResultsModal', false);
+    });
+
+    document.getElementById('hrGameFilter')?.addEventListener('change', () => {
+        this.updateHistoryDashboard();
     });
 
     // Dashboard Filters Events
@@ -4339,7 +5144,16 @@ class DataLotto49Advanced {
           this.removeNumber(foundExisting, 'number');
         }
       }
-      const limit = isMultiple ? (this.currentGame.maxNumbers === 5 ? 10 : 11) : this.currentGame.maxNumbers;
+      let limit = this.currentGame.maxNumbers;
+      if (isMultiple) {
+        limit = this.currentGame.maxNumbers === 5 ? 10 : 11;
+      } else if (strategy === 'reducida') {
+        const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+        const gameId = this.currentGame.id;
+        const systems = REDUCED_SYSTEMS[gameId] || [];
+        const system = systems.find(s => s.id === select?.value);
+        limit = system ? system.baseNumbersCount : 11;
+      }
       if (this.selectedNumbers.size < limit) {
         this.selectedNumbers.add(number);
         document.querySelector(`.number-ball[data-number="${number}"][data-type="number"]`)?.classList.add('selected');
@@ -4595,14 +5409,22 @@ class DataLotto49Advanced {
     document.querySelector(`.strategy-buttons .strategy-btn[data-strategy="${strategy}"]`)?.classList.add('active');
     const winningOptions = document.getElementById('winningOptions') as HTMLElement;
     const multipleOptions = document.getElementById('multipleNumbersOptions') as HTMLElement;
+    const reducedOptions = document.getElementById('reducedOptions') as HTMLElement;
+    const realTimeStatsSection = document.getElementById('realTimeStatsSection');
     const generateBtn = document.getElementById('generateBtn');
 
     if(winningOptions) winningOptions.style.display = strategy === 'winning' ? 'block' : 'none';
     if(multipleOptions) multipleOptions.style.display = strategy === 'multiple' ? 'block' : 'none';
+    if(reducedOptions) reducedOptions.style.display = strategy === 'reducida' ? 'block' : 'none';
+    if(realTimeStatsSection) realTimeStatsSection.style.display = strategy === 'simple' ? 'block' : 'none';
     
     if (generateBtn) {
         generateBtn.innerHTML = `<span>🤞 Generar Combinación</span>`;
     }
+    
+    this.clearSelections(false);
+    this.updateSelectionTitle();
+    this.updateReducedSystemInfo();
   }
   
   // ===========================================
@@ -4611,10 +5433,16 @@ class DataLotto49Advanced {
   async generateCombinations() {
     if (this.isGenerating) return;
     
+    let strategy = (document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement)?.dataset.strategy;
+    if (!strategy) {
+        strategy = 'simple';
+        this.updateStrategyUI('simple');
+    }
+
     this.clearUITrigger();
     this.showFilterSpinner();
-    // Don't clear selections if in figure mode, as they ARE the universe
-    if (this.currentSelectionMode !== 'figure') {
+    // Don't clear selections if in figure mode (as they ARE the universe) or if in reducida strategy (as they are the base)
+    if (this.currentSelectionMode !== 'figure' && strategy !== 'reducida') {
         this.clearSelections(false);
     }
 
@@ -4634,14 +5462,9 @@ class DataLotto49Advanced {
       this.hideFilterSpinner();
       return;
     }
-
-    let strategy = (document.querySelector('.strategy-buttons .strategy-btn.active') as HTMLElement)?.dataset.strategy;
-    if (!strategy) {
-        strategy = 'simple';
-        this.updateStrategyUI('simple');
-    }
     let combinations: number[][] = [];
     let starsCombinations: number[][] = [];
+    let selectedSystemName = '';
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -4699,10 +5522,55 @@ class DataLotto49Advanced {
               starsCombinations = [result.stars];
               this.lastMultipleStats = { validCount: result.validCount, totalCount: result.totalCount };
           }
+      } else if (strategy === 'reducida') {
+          const select = document.getElementById('reducedSystemSelect') as HTMLSelectElement;
+          const gameId = this.currentGame.id;
+          const systems = REDUCED_SYSTEMS[gameId] || [];
+          const system = systems.find(s => s.id === select?.value);
+          if (!system) {
+              throw new Error('No se ha seleccionado ningún sistema de reducción válido o no es compatible con el juego activo.');
+          }
+          if (this.selectedNumbers.size !== system.baseNumbersCount) {
+              throw new Error(`Debes seleccionar exactamente ${system.baseNumbersCount} números base en la cuadrícula. Actualmente tienes ${this.selectedNumbers.size}.`);
+          }
+          
+          this.showLoading('Generando combinación reducida...');
+          
+          const baseNumbersSorted = Array.from(this.selectedNumbers).sort((a, b) => a - b);
+          selectedSystemName = system.name;
+          
+          const selectedStarsArr = Array.from(this.selectedStars);
+          let baseStars: number[] = [];
+          if (selectedStarsArr.length >= this.currentGame.maxStars) {
+              baseStars = selectedStarsArr.slice(0, this.currentGame.maxStars);
+          } else {
+              const availableStars = this.getAvailableUniverse('star');
+              const shuffledStars = [...availableStars].sort(() => Math.random() - 0.5);
+              baseStars = shuffledStars.slice(0, this.currentGame.maxStars);
+          }
+          
+          const matrix = getGreedyCovering(
+              system.baseNumbersCount,
+              this.currentGame.maxNumbers,
+              system.id.includes('-3-3') ? 3 : (system.id.includes('-4-4') ? 4 : 5),
+              system.combinationsCount
+          );
+          
+          combinations = matrix.map(indices => {
+              return indices.map(idx => baseNumbersSorted[idx]).sort((a, b) => a - b);
+          });
+          
+          starsCombinations = combinations.map(() => [...baseStars].sort((a, b) => a - b));
       }
 
       if (combinations.length > 0) {
-        this.displayTicket(combinations, strategy!, starsCombinations);
+        this.displayTicket(combinations, strategy!, starsCombinations, selectedSystemName);
+        
+        // Telemetry
+        this.sendTelemetry('generate_ticket', {
+            combinationsCount: combinations.length,
+            gameId: this.currentGame.id
+        });
         
         // UI Trigger Logic
         let triggerMsg = '';
@@ -4720,6 +5588,9 @@ class DataLotto49Advanced {
             const percentage = ((validCount / totalCount) * 100).toFixed(1);
             triggerMsg = `Múltiple encontrada! ${validCount}/${totalCount} combinaciones internas cumplen los filtros (${percentage}%)`;
             toastMsg = `✅ Múltiple encontrada! ${validCount}/${totalCount} combinaciones internas cumplen los filtros (${percentage}%)`;
+        } else if (strategy === 'reducida') {
+            triggerMsg = `Boleto Reducido de ${combinations.length} apuestas generado con el sistema: ${selectedSystemName}`;
+            toastMsg = `✅ Boleto Reducido generado con éxito!`;
         }
 
         if (triggerMsg) {
@@ -5482,7 +6353,7 @@ class DataLotto49Advanced {
   }
   
   // ===== TICKET & STORAGE =====
-  displayTicket(combinations: number[][], strategy: string, starsCombinations: number[][] = []) {
+  displayTicket(combinations: number[][], strategy: string, starsCombinations: number[][] = [], systemName?: string) {
     let finalCombinations = combinations;
     
     // YA NO EXPLOTAMOS AQUÍ LA MÚLTIPLE.
@@ -5494,7 +6365,8 @@ class DataLotto49Advanced {
         combinations: finalCombinations, 
         strategy,
         gameId: this.currentGame.id, // NEW: Store game ID
-        stars: starsCombinations.length > 0 ? starsCombinations : undefined
+        stars: starsCombinations.length > 0 ? starsCombinations : undefined,
+        systemName
     };
 
     const ticketDiv = document.getElementById('ticket');
@@ -5679,9 +6551,19 @@ class DataLotto49Advanced {
       this.currentTicket.drawDate = drawDateEl.value;
     }
 
+    const savedTicketCopy = { ...this.currentTicket };
     this.savedTickets.unshift(this.currentTicket);
     this.saveState();
     this.updateSavedTickets();
+
+    // Telemetry
+    this.sendTelemetry('save_ticket', {
+        drawDate: savedTicketCopy.drawDate || 'Desconocida',
+        combinationsCount: savedTicketCopy.combinations.length,
+        isMultiple: savedTicketCopy.combinations.length > 0 && savedTicketCopy.combinations[0].length > (GAMES[savedTicketCopy.gameId || 'bonoloto']?.maxNumbers || 6),
+        gameId: savedTicketCopy.gameId || this.currentGame.id
+    });
+
     this.currentTicket = null;
     const ticketDiv = document.getElementById('ticket');
     if(ticketDiv) ticketDiv.classList.remove('show');
@@ -5807,6 +6689,7 @@ class DataLotto49Advanced {
 
   updateSavedTickets() {
     this.updateSavedTicketsStats();
+    this.updateHistoryDashboard();
     const container = document.getElementById('savedTickets');
     if (!container) return;
     container.innerHTML = '';
@@ -6067,6 +6950,22 @@ class DataLotto49Advanced {
                 starHits
             };
             validatedCount++;
+
+            // Telemetry
+            const maxHits = hits.length > 0 ? Math.max(...hits) : 0;
+            const maxStars = starHits && starHits.length > 0 ? Math.max(...starHits) : 0;
+            let prizeNotice = `${maxHits} aciertos`;
+            if (maxStars > 0) prizeNotice += ` + ${maxStars} ⭐`;
+            this.sendTelemetry('validate_ticket', {
+                gameId: ticket.gameId || this.currentGame.id,
+                maxHits: maxHits,
+                allHits: hits,
+                stars: starHits,
+                prizeNotice: prizeNotice,
+                drawDate: ticket.drawDate || 'Auto-validado',
+                combinationsCount: ticket.combinations.length,
+                isMultiple: ticket.combinations.length > 0 && ticket.combinations[0].length > (GAMES[ticket.gameId || 'bonoloto']?.maxNumbers || 6)
+            });
         }
     });
 
@@ -6191,6 +7090,23 @@ class DataLotto49Advanced {
         };
         this.saveState();
         this.updateSavedTickets();
+
+        // Telemetry
+        const maxHits = hits.length > 0 ? Math.max(...hits) : 0;
+        const maxStars = starHits && starHits.length > 0 ? Math.max(...starHits) : 0;
+        let prizeNotice = `${maxHits} aciertos`;
+        if (maxStars > 0) prizeNotice += ` + ${maxStars} ⭐`;
+        this.sendTelemetry('validate_ticket', {
+            gameId: ticketToUpdate.gameId || this.currentGame.id,
+            maxHits: maxHits,
+            allHits: hits,
+            stars: starHits,
+            prizeNotice: prizeNotice,
+            drawDate: ticketToUpdate.drawDate || 'Desconocida',
+            combinationsCount: ticketToUpdate.combinations.length,
+            isMultiple: ticketToUpdate.combinations.length > 0 && ticketToUpdate.combinations[0].length > (GAMES[ticketToUpdate.gameId || 'bonoloto']?.maxNumbers || 6)
+        });
+
         this.toggleModal('validationModal', false);
         this.showToast('Boleto validado manualmente.', 'success');
     } else {
@@ -6205,6 +7121,152 @@ class DataLotto49Advanced {
       } else {
           navigator.clipboard.writeText(text).then(() => this.showToast('Boleto copiado al portapapeles', 'success'));
       }
+  }
+
+  async fetchAndRenderJackpots(force = false) {
+    const tableBody = document.getElementById('jackpotsTableBody');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8;">
+          <div class="loading-spinner" style="margin: 0 auto 10px auto; width: 24px; height: 24px;"></div>
+          Conectando con Google Sheets y calculando esperanza matemática...
+        </td>
+      </tr>
+    `;
+    
+    try {
+      const response = await fetch(`/api/jackpots${force ? '?refresh=true' : ''}`);
+      const result = await response.json();
+      
+      if (!result.success || !result.data) {
+        throw new Error(result.errorDetail || 'No se pudieron recuperar los botes.');
+      }
+      
+      const jackpots = result.data;
+      
+      // Probabilities of first-tier prizes
+      const probabilities: { [key: string]: number } = {
+        'bonoloto': 1 / 13983816,
+        'primitiva': 1 / 139838160,
+        'gordo': 1 / 31625100,
+        'euromillones': 1 / 139838160,
+        'eurodreams': 1 / 23030000,
+        'nacional': 1 / 100000
+      };
+      
+      const ticketPrices: { [key: string]: number } = {
+        'bonoloto': 0.50,
+        'primitiva': 1.00,
+        'gordo': 1.50,
+        'euromillones': 2.50,
+        'eurodreams': 2.50,
+        'nacional': 3.00
+      };
+      
+      const ratedJackpots = jackpots.map((jk: any) => {
+        const gameId = jk.id;
+        const prob = probabilities[gameId] || (1 / 10000000);
+        const price = ticketPrices[gameId] || 1.0;
+        
+        // Multiplier is 1e6 to make indices clean and comparable
+        const score = (jk.bote * prob) / price;
+        const scoreFriendly = Math.round(score * 1000) / 1000;
+        
+        let rating = '⚠️ Estándar';
+        let badgeClass = 'background-color: #f1f5f9; color: #475569;';
+        
+        if (gameId === 'bonoloto') {
+          if (jk.bote >= 2000000) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (jk.bote >= 1000000) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        } else if (gameId === 'primitiva') {
+          if (jk.bote >= 25000000) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (jk.bote >= 10000000) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        } else if (gameId === 'gordo') {
+          if (jk.bote >= 12000000) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (jk.bote >= 7000000) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        } else if (gameId === 'euromillones') {
+          if (jk.bote >= 100000000) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (jk.bote >= 50000000) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        } else if (gameId === 'eurodreams') {
+          if (jk.bote >= 7200000) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (jk.bote >= 4000000) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        } else {
+          if (scoreFriendly >= 0.5) { rating = '🌟 Excelente'; badgeClass = 'background-color: #fef3c7; color: #d97706; font-weight: bold;'; }
+          else if (scoreFriendly >= 0.2) { rating = '✅ Buena'; badgeClass = 'background-color: #dcfce7; color: #15803d;'; }
+        }
+        
+        return {
+          ...jk,
+          score: scoreFriendly,
+          rating,
+          badgeClass
+        };
+      });
+      
+      const sorted = [...ratedJackpots].sort((a, b) => b.score - a.score);
+      const best = sorted[0];
+      
+      tableBody.innerHTML = ratedJackpots.map((jk: any) => {
+        const formattedBote = jk.bote.toLocaleString('es-ES') + ' €';
+        const isCurrentGame = jk.id === this.currentGame.id;
+        const highlightStyle = isCurrentGame ? 'background: #f0f9ff; font-weight: 600;' : '';
+        const currentTag = isCurrentGame ? ' <span style="font-size: 0.7rem; background: #0284c7; color: white; padding: 1px 4px; border-radius: 4px; margin-left: 4px;">Activo</span>' : '';
+        
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0; ${highlightStyle}">
+            <td style="padding: 12px 15px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+              <span>${this.getGameFlag(jk.id)}</span>
+              ${jk.juego}${currentTag}
+            </td>
+            <td style="padding: 12px 15px; font-weight: bold; color: var(--primary);">${formattedBote}</td>
+            <td style="padding: 12px 15px; color: #475569;">${jk.fecha}</td>
+            <td style="padding: 12px 15px; text-align: right; font-family: monospace; font-weight: 600; color: #0f766e;">${jk.score}</td>
+            <td style="padding: 12px 15px; text-align: center;">
+              <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; ${jk.badgeClass}">${jk.rating}</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      if (best) {
+        const bestNameEl = document.getElementById('bestExpectationGameName');
+        const bestReasonEl = document.getElementById('bestExpectationReasoning');
+        
+        if (bestNameEl) bestNameEl.innerHTML = `${this.getGameFlag(best.id)} ¡Jugar a la ${best.juego}!`;
+        if (bestReasonEl) {
+          bestReasonEl.innerHTML = `Con un bote de <strong>${best.bote.toLocaleString('es-ES')} €</strong>, es el sorteo con mayor esperanza matemática de retorno actual (Índice de Retorno de <strong>${best.score}</strong>). ¡Prepara tus combinaciones optimizadas para el <strong>${best.fecha}</strong>!`;
+        }
+      }
+      
+      if (result.isFallback) {
+        this.showToast('ℹ️ Mostrando botes estimados por defecto (La hoja del usuario aún se está configurando).', 'info');
+      } else {
+        this.showToast('📈 Botes actualizados desde la hoja de cálculo del usuario.', 'success');
+      }
+      
+    } catch (err: any) {
+      console.error('Error fetching jackpots:', err);
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding: 30px; text-align: center; color: #ef4444;">
+            ❌ Error de conexión al leer los botes: ${err.message || err}<br>
+            <button class="modal-btn" id="jackpotsRetryBtn" style="margin-top:10px; background: #ef4444; color:white; border:none; padding: 4px 10px; border-radius:4px; cursor:pointer;">Reintentar</button>
+          </td>
+        </tr>
+      `;
+      
+      document.getElementById('jackpotsRetryBtn')?.addEventListener('click', () => {
+        this.fetchAndRenderJackpots(true);
+      });
+    }
+  }
+
+  getGameFlag(gameId: string): string {
+    if (gameId === 'euromillones') return '🇪🇺';
+    if (gameId === 'eurodreams') return '🇪🇺';
+    return '🇪🇸';
   }
 
   playTicketOnline(ticket: Ticket) {
@@ -6490,7 +7552,25 @@ class DataLotto49Advanced {
   }
   toggleModal(id: string, show: boolean) { 
     const modal = document.getElementById(id) as HTMLElement;
-    if (modal) modal.style.display = show ? 'flex' : 'none';
+    if (modal) {
+      if (show) {
+        // Calculate z-index to be higher than other active modals
+        const activeModals = Array.from(document.querySelectorAll('.modal')).filter(m => {
+          const htmlM = m as HTMLElement;
+          return htmlM.style.display === 'flex' && htmlM.id !== id;
+        });
+        let maxZ = 2000;
+        activeModals.forEach(m => {
+          const z = parseInt(window.getComputedStyle(m).zIndex) || 2000;
+          if (z > maxZ) maxZ = z;
+        });
+        modal.style.zIndex = (maxZ + 50).toString();
+        modal.style.display = 'flex';
+      } else {
+        modal.style.display = 'none';
+        modal.style.zIndex = '';
+      }
+    }
   }
 
   toggleSidebar() {
@@ -6644,105 +7724,47 @@ class DataLotto49Advanced {
 
   renderFrequencyChart() {
     const container = document.getElementById('frequencyChartContainer');
+    const summary = document.getElementById('dataVizSummary');
+    const targetSelectorContainer = document.getElementById('vizTargetSelectorContainer');
+
     if (!container) return;
     container.innerHTML = '';
 
     if (!this.dataLoaded || this.historicalData.length === 0) {
-        container.innerHTML = '<div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el gráfico.</div>';
+        container.innerHTML = '<div style="color:#666; text-align: center; width: 100%; padding-top: 50px;">Carga datos para ver el gráfico.</div>';
+        if (summary) {
+            summary.innerHTML = '<div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el resumen estadístico.</div>';
+        }
         return;
     }
 
-    if (this.currentGame.id === 'nacional') {
-        const columns = [
-            { key: 'DM', name: 'Decena de Millar (1ª cifra)' },
-            { key: 'UM', name: 'Unidad de Millar (2ª cifra)' },
-            { key: 'C',  name: 'Centena (3ª cifra)' },
-            { key: 'D',  name: 'Decena (4ª cifra)' },
-            { key: 'U',  name: 'Unidad (5ª cifra)' }
-        ];
-
-        // Calculate frequencies for each position
-        const positionalFreqs: { [key: number]: { [digit: number]: number } } = {
-            0: {}, 1: {}, 2: {}, 3: {}, 4: {}
-        };
-        
-        // Initialize with 0s
-        for (let col = 0; col < 5; col++) {
-            for (let digit = 0; digit < 10; digit++) {
-                positionalFreqs[col][digit] = 0;
-            }
-        }
-
-        // Count frequencies from historical data
-        this.historicalData.forEach(draw => {
-            draw.numbers.forEach(num => {
-                const colIdx = Math.floor(num / 10) - 1;
-                const digit = num % 10;
-                if (colIdx >= 0 && colIdx < 5) {
-                    positionalFreqs[colIdx][digit]++;
-                }
-            });
-        });
-
-        // Find max frequency across all positions for scaling
-        let maxFreq = 0;
-        for (let col = 0; col < 5; col++) {
-            for (let digit = 0; digit < 10; digit++) {
-                if (positionalFreqs[col][digit] > maxFreq) {
-                    maxFreq = positionalFreqs[col][digit];
-                }
-            }
-        }
-
-        // Build HTML
-        const wrapper = document.createElement('div');
-        wrapper.className = 'nacional-freq-grid';
-        wrapper.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; width: 100%; margin-top: 10px;';
-
-        columns.forEach((colInfo, colIdx) => {
-            const subChartContainer = document.createElement('div');
-            subChartContainer.className = 'nacional-subchart';
-            subChartContainer.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;';
-
-            const title = document.createElement('div');
-            title.style.cssText = 'font-size: 0.8rem; font-weight: bold; color: #334155; text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;';
-            title.textContent = colInfo.name;
-            subChartContainer.appendChild(title);
-
-            const barsContainer = document.createElement('div');
-            barsContainer.style.cssText = 'display: flex; gap: 4px; height: 120px; align-items: flex-end; justify-content: space-around; padding-bottom: 4px; border-bottom: 2px solid #94a3b8; padding-top: 20px;';
-
-            for (let digit = 0; digit < 10; digit++) {
-                const freq = positionalFreqs[colIdx][digit];
-                const barHeight = maxFreq > 0 ? (freq / maxFreq) * 100 : 0;
-
-                const barWrapper = document.createElement('div');
-                barWrapper.className = 'bar-wrapper';
-                barWrapper.style.cssText = 'flex: 1; height: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;';
-                barWrapper.title = `Cifra ${digit}: ${freq} apariciones`;
-
-                barWrapper.innerHTML = `
-                    <div class="bar-value" style="font-size: 0.65rem; color: #475569; position: absolute; bottom: calc(${barHeight}% + 2px); left: 50%; transform: translateX(-50%); font-weight: bold;">${freq}</div>
-                    <div class="chart-bar" style="height: ${barHeight}%; width: 80%; background: linear-gradient(to top, #3b82f6, #60a5fa); border-radius: 2px 2px 0 0; min-height: 2px;"></div>
-                    <div class="bar-label" style="font-size: 0.75rem; font-weight: bold; color: #1e293b; margin-top: 4px;">${digit}</div>
-                `;
-                barsContainer.appendChild(barWrapper);
-            }
-
-            subChartContainer.appendChild(barsContainer);
-            wrapper.appendChild(subChartContainer);
-        });
-
-        container.appendChild(wrapper);
-        return;
+    // Toggle target selector visibility
+    if (this.currentGame.maxStars > 0) {
+        if (targetSelectorContainer) targetSelectorContainer.style.display = 'flex';
+    } else {
+        if (targetSelectorContainer) targetSelectorContainer.style.display = 'none';
+        this.vizTarget = 'number';
+        const select = document.getElementById('vizTargetSelect') as HTMLSelectElement;
+        if (select) select.value = 'number';
     }
 
-    const frequencies: { [key: number]: number } = {};
-    for (let i = 1; i <= this.currentGame.numberRange; i++) frequencies[i] = 0;
-    this.historicalData.forEach(draw => draw.numbers.forEach(num => {
-        if (frequencies[num] !== undefined) frequencies[num]++;
-    }));
+    const isNacional = this.currentGame.id === 'nacional';
+    const N = this.vizTarget === 'star'
+        ? this.historicalData.filter(d => d.stars && d.stars.length > 0).length
+        : this.historicalData.filter(d => d.numbers && d.numbers.length > 0).length;
     
+    // Calculate frequencies for numbers
+    const frequencies: { [key: number]: number } = {};
+    const startNum = isNacional ? 10 : 1;
+    for (let i = startNum; i <= this.currentGame.numberRange; i++) frequencies[i] = 0;
+    
+    this.historicalData.forEach(draw => {
+        draw.numbers.forEach(num => {
+            if (frequencies[num] !== undefined) frequencies[num]++;
+        });
+    });
+
+    // Calculate frequencies for stars
     const starFrequencies: { [key: number]: number } = {};
     if (this.currentGame.maxStars > 0) {
         for (let i = 1; i <= this.currentGame.starRange; i++) starFrequencies[i] = 0;
@@ -6755,51 +7777,254 @@ class DataLotto49Advanced {
         });
     }
 
-    const allFreqs = [...Object.values(frequencies), ...Object.values(starFrequencies)];
-    const maxFreq = Math.max(...allFreqs);
-    if (maxFreq === 0) return;
+    // Determine current active metrics
+    let activeFreqs: { [key: number]: number } = {};
+    let minKey = 1;
+    let maxKey = 1;
+    let prob = 0;
 
-    // Render Numbers
-    for (let i = 1; i <= this.currentGame.numberRange; i++) {
-        const freq = frequencies[i];
-        const barHeight = (freq / maxFreq) * 100;
-        
-        const barWrapper = document.createElement('div');
-        barWrapper.className = 'bar-wrapper';
-        barWrapper.title = `Número ${i}: ${freq} apariciones`;
-        
-        barWrapper.innerHTML = `
-            <div class="bar-value">${freq}</div>
-            <div class="chart-bar" style="height: ${barHeight}%"></div>
-            <div class="bar-label">${i}</div>
-        `;
-        container.appendChild(barWrapper);
+    if (isNacional) {
+        activeFreqs = frequencies;
+        minKey = 10;
+        maxKey = 59;
+        prob = 0.1; // 1/10
+    } else if (this.vizTarget === 'star') {
+        activeFreqs = starFrequencies;
+        minKey = 1;
+        maxKey = this.currentGame.starRange;
+        prob = this.currentGame.maxStars / this.currentGame.starRange;
+    } else {
+        activeFreqs = frequencies;
+        minKey = 1;
+        maxKey = this.currentGame.numberRange;
+        prob = this.currentGame.maxNumbers / this.currentGame.numberRange;
     }
 
-    // Render Stars (if applicable)
-    if (this.currentGame.maxStars > 0) {
-        const separator = document.createElement('div');
-        separator.style.width = '2px';
-        separator.style.height = '100%';
-        separator.style.background = '#e2e8f0';
-        separator.style.margin = '0 10px';
-        container.appendChild(separator);
+    const mean = N > 0 ? N * prob : 0;
+    const variance = N > 0 ? N * prob * (1 - prob) : 0;
+    const sd = N > 0 ? Math.sqrt(variance) : 0;
 
-        for (let i = 1; i <= this.currentGame.starRange; i++) {
-            const freq = starFrequencies[i];
-            const barHeight = (freq / maxFreq) * 100;
-            
-            const barWrapper = document.createElement('div');
-            barWrapper.className = 'bar-wrapper star-bar';
-            barWrapper.title = `Estrella ${i}: ${freq} apariciones`;
-            
-            barWrapper.innerHTML = `
-                <div class="bar-value" style="color: #fbbf24;">${freq}</div>
-                <div class="chart-bar" style="height: ${barHeight}%; background: linear-gradient(to top, #fbbf24, #f59e0b);"></div>
-                <div class="bar-label" style="color: #d97706; font-weight: bold;">★${i}</div>
-            `;
-            container.appendChild(barWrapper);
+    // Calculate min/max actual frequencies
+    let maxActualFreq = -1;
+    let minActualFreq = Infinity;
+    const maxFreqNum: number[] = [];
+    const minFreqNum: number[] = [];
+
+    Object.entries(activeFreqs).forEach(([keyStr, freq]) => {
+        if (freq > maxActualFreq) maxActualFreq = freq;
+        if (freq < minActualFreq) minActualFreq = freq;
+    });
+
+    Object.entries(activeFreqs).forEach(([keyStr, freq]) => {
+        const key = parseInt(keyStr);
+        if (freq === maxActualFreq) maxFreqNum.push(key);
+        if (freq === minActualFreq) minFreqNum.push(key);
+    });
+
+    const formatKey = (key: number) => {
+        if (isNacional) {
+            const colIdx = Math.floor(key / 10);
+            const digit = key % 10;
+            const columnsLabels = [
+                "1ª Cifra",
+                "2ª Cifra",
+                "3ª Cifra",
+                "4ª Cifra",
+                "5ª Cifra"
+            ];
+            return `${columnsLabels[colIdx - 1]} (${digit})`;
         }
+        if (this.vizTarget === 'star') {
+            return `★${key}`;
+        }
+        return `${key}`;
+    };
+
+    const maxFreqStr = maxFreqNum.map(formatKey).join(', ');
+    const minFreqStr = minFreqNum.map(formatKey).join(', ');
+
+    if (summary) {
+        summary.innerHTML = `
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; width: 100%;">
+                <div style="flex: 1; min-width: 220px;">
+                    🔥 <strong>Más frecuente:</strong> <span style="color: #ef4444; font-weight: bold;">${maxFreqStr}</span> (${maxActualFreq} veces)
+                </div>
+                <div style="flex: 1; min-width: 220px;">
+                    ❄️ <strong>Menos frecuente:</strong> <span style="color: #3b82f6; font-weight: bold;">${minFreqStr}</span> (${minActualFreq} veces)
+                </div>
+                <div style="flex: 1; min-width: 250px; text-align: right;" class="mean-indicator">
+                    📈 <strong>Media esperada:</strong> <span style="color: #10b981; font-weight: bold;">${mean.toFixed(2)}</span>
+                    <span style="color: #64748b; font-size: 0.85rem; margin-left: 5px;">(±${sd.toFixed(2)} desv. est.)</span>
+                </div>
+            </div>
+        `;
+    }
+
+    if (this.vizMode === 'heatmap') {
+        if (isNacional) {
+            const columnsLabels = [
+                "1ª Cifra (Decena de millar)",
+                "2ª Cifra (Unidad de millar)",
+                "3ª Cifra (Centena)",
+                "4ª Cifra (Decena)",
+                "5ª Cifra (Unidad)"
+            ];
+            
+            let html = `<div style="display: flex; flex-direction: column; gap: 20px; width: 100%;">`;
+            
+            for (let colIdx = 0; colIdx < 5; colIdx++) {
+                html += `
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: bold; color: #475569; margin-bottom: 8px; border-left: 3px solid var(--primary); padding-left: 8px;">
+                            ${columnsLabels[colIdx]}
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px;">
+                `;
+                
+                for (let digit = 0; digit < 10; digit++) {
+                    const key = (colIdx + 1) * 10 + digit;
+                    const freq = activeFreqs[key] || 0;
+                    
+                    const z = sd > 0 ? (freq - mean) / sd : 0;
+                    const ratio = Math.min(Math.abs(z) / 2.5, 1.0);
+                    let bg = 'rgba(226, 232, 240, 0.4)';
+                    let color = 'var(--dark)';
+                    let border = '1px solid #cbd5e1';
+                    
+                    if (z > 0.2) {
+                        bg = `rgba(239, 68, 68, ${0.1 + 0.7 * ratio})`;
+                        color = ratio > 0.6 ? '#ffffff' : '#991b1b';
+                        border = `1px solid rgba(220, 38, 38, ${0.2 + 0.8 * ratio})`;
+                    } else if (z < -0.2) {
+                        bg = `rgba(59, 130, 246, ${0.1 + 0.7 * ratio})`;
+                        color = ratio > 0.6 ? '#ffffff' : '#1e3a8a';
+                        border = `1px solid rgba(37, 99, 235, ${0.2 + 0.8 * ratio})`;
+                    }
+                    
+                    html += `
+                        <div style="background: ${bg}; color: ${color}; border: ${border}; border-radius: 8px; padding: 10px 4px; text-align: center; display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: center; min-height: 55px;" title="Cifra ${digit}: ${freq} veces (z-score: ${z.toFixed(2)})">
+                            <span style="font-size: 1.1rem; font-weight: bold;">${digit}</span>
+                            <span style="font-size: 0.7rem; font-weight: 500; opacity: 0.95;">${freq}v</span>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            container.innerHTML = html;
+        } else {
+            const gridCols = this.vizTarget === 'star' ? Math.min(this.currentGame.starRange, 6) : this.currentGame.gridCols;
+            let html = `
+                <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 8px; width: 100%;">
+            `;
+            
+            for (let i = minKey; i <= maxKey; i++) {
+                const freq = activeFreqs[i] || 0;
+                const z = sd > 0 ? (freq - mean) / sd : 0;
+                const ratio = Math.min(Math.abs(z) / 2.5, 1.0);
+                let bg = 'rgba(226, 232, 240, 0.4)';
+                let color = 'var(--dark)';
+                let border = '1px solid #cbd5e1';
+                
+                if (z > 0.2) {
+                    bg = `rgba(239, 68, 68, ${0.1 + 0.7 * ratio})`;
+                    color = ratio > 0.6 ? '#ffffff' : '#991b1b';
+                    border = `1px solid rgba(220, 38, 38, ${0.2 + 0.8 * ratio})`;
+                } else if (z < -0.2) {
+                    bg = `rgba(59, 130, 246, ${0.1 + 0.7 * ratio})`;
+                    color = ratio > 0.6 ? '#ffffff' : '#1e3a8a';
+                    border = `1px solid rgba(37, 99, 235, ${0.2 + 0.8 * ratio})`;
+                }
+                
+                const labelStr = this.vizTarget === 'star' ? `★${i}` : `${i}`;
+                
+                html += `
+                    <div style="background: ${bg}; color: ${color}; border: ${border}; border-radius: 8px; padding: 10px 4px; text-align: center; display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: center; min-height: 55px;" title="${this.vizTarget === 'star' ? 'Estrella' : 'Número'} ${i}: ${freq} veces (z-score: ${z.toFixed(2)})">
+                        <span style="font-size: 1.1rem; font-weight: bold;">${labelStr}</span>
+                        <span style="font-size: 0.7rem; font-weight: 500; opacity: 0.95;">${freq}v</span>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            
+            html += `
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f1f5f9; font-size: 0.8rem; color: #64748b; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 14px; height: 14px; background: rgba(59, 130, 246, 0.4); border: 1px solid rgba(37, 99, 235, 0.4); border-radius: 3px;"></div>
+                        <span>Frío (Por debajo de la media)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 14px; height: 14px; background: rgba(226, 232, 240, 0.4); border: 1px solid #cbd5e1; border-radius: 3px;"></div>
+                        <span>Neutro / En la media</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 14px; height: 14px; background: rgba(239, 68, 68, 0.4); border: 1px solid rgba(220, 38, 38, 0.4); border-radius: 3px;"></div>
+                        <span>Caliente (Por encima de la media)</span>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+    } else {
+        // Ranking View
+        const sortedItems = Object.entries(activeFreqs)
+            .map(([keyStr, freq]) => ({ key: parseInt(keyStr), freq }))
+            .sort((a, b) => b.freq - a.freq);
+            
+        const maxFreqAcrossAll = Math.max(...Object.values(activeFreqs), 1);
+        const showMeanLine = mean > 0 && maxFreqAcrossAll > 0 && mean <= maxFreqAcrossAll;
+        const meanLeftPercent = showMeanLine ? (mean / maxFreqAcrossAll * 80).toFixed(2) : '0';
+        
+        let html = `
+            <div style="position: relative; padding: 25px 0 10px 0; width: 100%;">
+                ${showMeanLine ? `
+                <!-- Contenedor alineado con las barras de progreso (offset de 125px a la izquierda) -->
+                <div style="position: absolute; top: 25px; bottom: 10px; left: 125px; right: 0; pointer-events: none; z-index: 10;">
+                    <!-- Línea vertical para la Media Esperada dentro del contenedor alineado -->
+                    <div style="position: absolute; top: 0; bottom: 0; left: ${meanLeftPercent}%; border-left: 2px dashed #10b981; height: 100%;">
+                        <span style="position: absolute; top: -20px; transform: translateX(-50%); font-size: 0.7rem; font-weight: bold; color: #10b981; background: #ffffff; padding: 0 4px; border-radius: 4px; border: 1px solid #10b981; white-space: nowrap;">Media: ${mean.toFixed(1)}</span>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1;">
+        `;
+        
+        sortedItems.forEach((item, index) => {
+            const barWidth = (item.freq / maxFreqAcrossAll) * 80; // keep some room at the right for label
+            const formatted = formatKey(item.key);
+            
+            let barColor = 'linear-gradient(to right, #64748b, #94a3b8)';
+            if (item.freq > mean + sd) {
+                barColor = 'linear-gradient(to right, #ef4444, #f87171)';
+            } else if (item.freq < mean - sd) {
+                barColor = 'linear-gradient(to right, #3b82f6, #60a5fa)';
+            }
+            
+            html += `
+                <div style="display: flex; align-items: center; gap: 10px; position: relative;">
+                    <div style="width: 30px; font-size: 0.8rem; font-weight: bold; color: #94a3b8; text-align: right;">#${index + 1}</div>
+                    <div style="width: 75px; font-size: 0.8rem; font-weight: bold; color: var(--dark); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${formatted}">${formatted}</div>
+                    <div style="flex: 1; height: 26px; background: #f1f5f9; border-radius: 6px; overflow: hidden; position: relative; display: flex; align-items: center;">
+                        <div style="width: ${barWidth}%; height: 100%; background: ${barColor}; border-radius: 6px 0 0 6px; transition: width 0.5s ease-out;"></div>
+                        <span style="position: absolute; left: 8px; font-size: 0.8rem; font-weight: 700; color: ${barWidth > 12 ? '#ffffff' : 'var(--dark)'}; text-shadow: ${barWidth > 12 ? '0 1px 2px rgba(0,0,0,0.4)' : 'none'};">${item.freq} veces</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
     }
   }
 
@@ -7113,7 +8338,502 @@ class DataLotto49Advanced {
         
         // Update sidebar active state
         document.querySelectorAll('.sidebar-links li').forEach(li => li.classList.remove('active'));
-        document.querySelector('.sidebar-links a[data-action="home"]')?.parentElement?.classList.add('active');
+        const activeLi = document.getElementById(`game-${this.currentGame.id}`);
+        if (activeLi) activeLi.classList.add('active');
+    }
+  }
+
+  showBigDataIntelligence() {
+    this.closeSidebar();
+    this.toggleModal('bigdataModal', true);
+  }
+
+  showOfficialDrawsModal() {
+    this.closeSidebar();
+    
+    // Reset search state
+    this.officialDrawsPage = 1;
+    this.officialDrawsSearchQuery = '';
+    const searchInput = document.getElementById('officialDrawsSearchInput') as HTMLInputElement;
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    const gameNameEl = document.getElementById('officialDrawsGameName');
+    if (gameNameEl) {
+        gameNameEl.textContent = `${this.currentGame.name}`;
+    }
+
+    // Toggle header columns depending on current game
+    const extraHeader = document.getElementById('officialDrawsExtraHeader');
+    if (extraHeader) {
+        if (this.currentGame.id === 'euromillones') {
+            extraHeader.textContent = 'Estrellas ⭐';
+            extraHeader.style.display = '';
+        } else if (this.currentGame.id === 'eurodreams') {
+            extraHeader.textContent = 'Sueño 🌙';
+            extraHeader.style.display = '';
+        } else if (this.currentGame.id === 'gordo') {
+            extraHeader.textContent = 'Clave 🔑';
+            extraHeader.style.display = '';
+        } else if (this.currentGame.id === 'bonoloto' || this.currentGame.id === 'primitiva') {
+            extraHeader.textContent = 'Comp. / Reint.';
+            extraHeader.style.display = '';
+        } else {
+            extraHeader.textContent = 'Reintegro R';
+            extraHeader.style.display = '';
+        }
+    }
+
+    this.updateOfficialDrawsTable();
+    this.toggleModal('officialDrawsModal', true);
+  }
+
+  updateOfficialDrawsTable() {
+    const tableBody = document.getElementById('officialDrawsTableBody');
+    const noDataEl = document.getElementById('officialDrawsNoData');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    const query = this.officialDrawsSearchQuery.trim().toLowerCase();
+    let filtered = this.historicalData;
+
+    if (query) {
+        const parts = query.split(/[,;\s]+/).map(p => p.trim()).filter(p => p);
+        filtered = this.historicalData.filter(draw => {
+            return parts.every(part => {
+                const numVal = parseInt(part);
+                if (!isNaN(numVal)) {
+                    const numInNumbers = draw.numbers.includes(numVal);
+                    const numInStars = draw.stars ? draw.stars.includes(numVal) : false;
+                    const numInComplementario = draw.complementario === numVal;
+                    const numInReintegro = draw.reintegro === numVal;
+                    return numInNumbers || numInStars || numInComplementario || numInReintegro;
+                } else {
+                    const dateStr = draw.date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toLowerCase();
+                    const drawTypeStr = draw.drawType ? draw.drawType.toLowerCase() : '';
+                    return dateStr.includes(part) || drawTypeStr.includes(part);
+                }
+            });
+        });
+    }
+
+    // Sort newest first
+    const sortedDraws = [...filtered].reverse();
+    const totalItems = sortedDraws.length;
+
+    if (totalItems === 0) {
+        if (noDataEl) noDataEl.style.display = 'block';
+        const infoEl = document.getElementById('officialDrawsPaginationInfo');
+        if (infoEl) infoEl.textContent = 'Mostrando 0 sorteos';
+        const pageEl = document.getElementById('officialDrawsCurrentPage');
+        if (pageEl) pageEl.textContent = 'Pág. 1 de 1';
+        
+        // Disable pagination
+        const prevBtn = document.getElementById('officialDrawsPrevBtn') as HTMLButtonElement;
+        const nextBtn = document.getElementById('officialDrawsNextBtn') as HTMLButtonElement;
+        if (prevBtn) {
+            prevBtn.disabled = true;
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.pointerEvents = 'none';
+        }
+        if (nextBtn) {
+            nextBtn.disabled = true;
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.pointerEvents = 'none';
+        }
+        return;
+    }
+
+    if (noDataEl) noDataEl.style.display = 'none';
+
+    const totalPages = Math.ceil(totalItems / this.officialDrawsPageSize) || 1;
+    if (this.officialDrawsPage > totalPages) {
+        this.officialDrawsPage = totalPages;
+    }
+    if (this.officialDrawsPage < 1) {
+        this.officialDrawsPage = 1;
+    }
+
+    const startIndex = (this.officialDrawsPage - 1) * this.officialDrawsPageSize;
+    const endIndex = Math.min(startIndex + this.officialDrawsPageSize, totalItems);
+    const pageItems = sortedDraws.slice(startIndex, endIndex);
+
+    // Update pagination info
+    const infoEl = document.getElementById('officialDrawsPaginationInfo');
+    if (infoEl) {
+        infoEl.textContent = `Mostrando sorteos ${startIndex + 1} a ${endIndex} de ${totalItems}`;
+    }
+    const pageEl = document.getElementById('officialDrawsCurrentPage');
+    if (pageEl) {
+        pageEl.textContent = `Pág. ${this.officialDrawsPage} de ${totalPages}`;
+    }
+
+    // Prev/Next Button states
+    const prevBtn = document.getElementById('officialDrawsPrevBtn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('officialDrawsNextBtn') as HTMLButtonElement;
+    if (prevBtn) {
+        prevBtn.disabled = this.officialDrawsPage === 1;
+        prevBtn.style.opacity = this.officialDrawsPage === 1 ? '0.5' : '1';
+        prevBtn.style.pointerEvents = this.officialDrawsPage === 1 ? 'none' : 'auto';
+    }
+    if (nextBtn) {
+        nextBtn.disabled = this.officialDrawsPage === totalPages;
+        nextBtn.style.opacity = this.officialDrawsPage === totalPages ? '0.5' : '1';
+        nextBtn.style.pointerEvents = this.officialDrawsPage === totalPages ? 'none' : 'auto';
+    }
+
+    // Build rows
+    pageItems.forEach(draw => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid #f1f5f9';
+        
+        // 1. Sorteo #
+        const tdId = document.createElement('td');
+        tdId.style.padding = '12px 15px';
+        tdId.style.fontWeight = 'bold';
+        tdId.style.color = '#475569';
+        tdId.textContent = `#${draw.id}`;
+        row.appendChild(tdId);
+
+        // 2. Fecha
+        const tdDate = document.createElement('td');
+        tdDate.style.padding = '12px 15px';
+        const rawDateStr = draw.date.toLocaleDateString('es-ES', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        const capitalizedDate = rawDateStr.charAt(0).toUpperCase() + rawDateStr.slice(1);
+        tdDate.textContent = capitalizedDate;
+        row.appendChild(tdDate);
+
+        // 3. Combinación Ganadora
+        const tdBalls = document.createElement('td');
+        tdBalls.style.padding = '12px 15px';
+        
+        const ballsContainer = document.createElement('div');
+        ballsContainer.className = 'mini-balls-group';
+        
+        draw.numbers.forEach(n => {
+            const ballDiv = document.createElement('div');
+            ballDiv.className = 'mini-ball';
+            if (this.hotNumbers.has(n)) ballDiv.className += ' hot';
+            else if (this.coldNumbers.has(n)) ballDiv.className += ' cold';
+            
+            const displayVal = this.currentGame.id === 'nacional' ? (n % 10) : n;
+            ballDiv.textContent = String(displayVal);
+            ballsContainer.appendChild(ballDiv);
+        });
+        
+        tdBalls.appendChild(ballsContainer);
+        row.appendChild(tdBalls);
+
+        // 4. Adicional / ⭐
+        const tdExtra = document.createElement('td');
+        tdExtra.style.padding = '12px 15px';
+
+        const extraContainer = document.createElement('div');
+        extraContainer.className = 'mini-balls-group';
+
+        if (this.currentGame.id === 'euromillones' && draw.stars && draw.stars.length > 0) {
+            draw.stars.forEach(s => {
+                const starDiv = document.createElement('div');
+                starDiv.className = 'mini-ball star-ball';
+                starDiv.textContent = String(s);
+                extraContainer.appendChild(starDiv);
+            });
+        } else if (this.currentGame.id === 'eurodreams' && draw.stars && draw.stars.length > 0) {
+            draw.stars.forEach(s => {
+                const starDiv = document.createElement('div');
+                starDiv.className = 'mini-ball star-ball';
+                starDiv.textContent = String(s);
+                extraContainer.appendChild(starDiv);
+            });
+        } else if (this.currentGame.id === 'gordo' && draw.stars && draw.stars.length > 0) {
+            draw.stars.forEach(s => {
+                const starDiv = document.createElement('div');
+                starDiv.className = 'mini-ball star-ball';
+                starDiv.textContent = String(s);
+                extraContainer.appendChild(starDiv);
+            });
+        } else if (this.currentGame.id === 'bonoloto' || this.currentGame.id === 'primitiva') {
+            if (draw.complementario !== undefined) {
+                const compDiv = document.createElement('div');
+                compDiv.className = 'mini-ball complementario-ball';
+                compDiv.title = 'Complementario';
+                compDiv.textContent = `C${draw.complementario}`;
+                extraContainer.appendChild(compDiv);
+            }
+            if (draw.reintegro !== undefined) {
+                const reDiv = document.createElement('div');
+                reDiv.className = 'mini-ball reintegro-ball';
+                reDiv.title = 'Reintegro';
+                reDiv.textContent = `R${draw.reintegro}`;
+                extraContainer.appendChild(reDiv);
+            }
+        } else if (this.currentGame.id === 'nacional') {
+            if (draw.reintegro !== undefined) {
+                const reDiv = document.createElement('div');
+                reDiv.className = 'mini-ball reintegro-ball';
+                reDiv.title = 'Reintegro';
+                reDiv.textContent = `R${draw.reintegro}`;
+                extraContainer.appendChild(reDiv);
+            } else {
+                extraContainer.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem;">-</span>';
+            }
+        } else {
+            extraContainer.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem;">-</span>';
+        }
+
+        tdExtra.appendChild(extraContainer);
+        row.appendChild(tdExtra);
+
+        tableBody.appendChild(row);
+    });
+  }
+
+  showHistoryOfResults() {
+    this.closeSidebar();
+    
+    // Set the game filter selection to match the current game or default to 'all'
+    const hrGameFilter = document.getElementById('hrGameFilter') as HTMLSelectElement;
+    if (hrGameFilter) {
+        hrGameFilter.value = this.currentGame.id;
+    }
+
+    this.updateHistoryDashboard();
+    this.toggleModal('historyOfResultsModal', true);
+  }
+
+  updateHistoryDashboard() {
+    const hrGameFilter = document.getElementById('hrGameFilter') as HTMLSelectElement;
+    const hrGameFilterVal = hrGameFilter ? hrGameFilter.value : 'all';
+
+    // Filter tickets
+    const filteredTickets = hrGameFilterVal === 'all'
+      ? this.savedTickets
+      : this.savedTickets.filter(t => t.gameId === hrGameFilterVal);
+
+    // Calculate total combinations generated
+    let totalCombinations = 0;
+    filteredTickets.forEach(ticket => {
+        if (ticket.strategy === 'multiple' && ticket.combinations[0].length > 6) {
+             const n = ticket.combinations[0].length;
+             let combos = 1;
+             for(let i=0; i<6; i++) combos *= (n-i)/(i+1);
+             totalCombinations += Math.round(combos);
+        } else {
+             totalCombinations += ticket.combinations.length;
+        }
+    });
+
+    const elTotal = document.getElementById('hrTotalCombinations');
+    if (elTotal) elTotal.innerHTML = String(totalCombinations);
+
+    // Calculate validated combinations
+    const validatedTickets = filteredTickets.filter(t => t.validation);
+    let validatedCombinations = 0;
+    validatedTickets.forEach(ticket => {
+        validatedCombinations += ticket.validation!.hits.length;
+    });
+
+    const elValidated = document.getElementById('hrValidatedCombinations');
+    if (elValidated) elValidated.innerHTML = String(validatedCombinations);
+
+    // Calculate best combination (maximum hits)
+    let maxHit = 0;
+    let maxHitStars = 0;
+    let hasStarsInBest = false;
+    validatedTickets.forEach(ticket => {
+        ticket.validation!.hits.forEach((hit, idx) => {
+            const stars = ticket.validation!.starHits ? ticket.validation!.starHits[idx] : 0;
+            if (hit > maxHit || (hit === maxHit && stars > maxHitStars)) {
+                maxHit = hit;
+                maxHitStars = stars;
+                if (ticket.validation!.starHits) {
+                    hasStarsInBest = true;
+                }
+            }
+        });
+    });
+
+    const elBest = document.getElementById('hrBestCombination');
+    if (elBest) {
+        if (validatedCombinations > 0) {
+            let bestText = `${maxHit} aciertos`;
+            if (hasStarsInBest && maxHitStars > 0) {
+                bestText += ` + ${maxHitStars} ⭐`;
+            }
+            elBest.innerHTML = bestText;
+        } else {
+            elBest.innerHTML = '-';
+        }
+    }
+
+    // Comparison Table Body
+    const tableBody = document.getElementById('hrComparisonTableBody');
+    const warningEl = document.getElementById('hrNoValidationWarning');
+    
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        
+        if (validatedCombinations === 0) {
+            if (warningEl) warningEl.style.display = 'block';
+        } else {
+            if (warningEl) warningEl.style.display = 'none';
+
+            // Define theoretical probabilities dictionary
+            const THEORETICAL_PROBABILITIES: { [key: string]: { [hits: string]: number } } = {
+              bonoloto: { '6': 0.00000715, '5': 0.00184, '4': 0.0969, '3': 1.765, '<=2': 98.136 },
+              primitiva: { '6': 0.00000715, '5': 0.00184, '4': 0.0969, '3': 1.765, '<=2': 98.136 },
+              gordo: { '5': 0.000032, '4': 0.0077, '3': 0.372, '<=2': 99.62 },
+              euromillones: { '5': 0.000047, '4': 0.0106, '3': 0.467, '<=2': 99.52 },
+              eurodreams: { '6': 0.000026, '5': 0.0053, '4': 0.219, '3': 3.118, '<=2': 96.657 },
+              nacional: { '5': 0.001, '4': 0.045, '3': 0.81, '<=2': 99.144 }
+            };
+
+            // Count actual hits
+            const actualHitCounts: { [tier: string]: number } = { '6': 0, '5': 0, '4': 0, '3': 0, '<=2': 0 };
+            const validatedCountsByGame: { [gameId: string]: number } = {
+              bonoloto: 0, primitiva: 0, gordo: 0, euromillones: 0, eurodreams: 0, nacional: 0
+            };
+
+            validatedTickets.forEach(ticket => {
+                const gameId = ticket.gameId || 'bonoloto';
+                const numCombos = ticket.validation!.hits.length;
+                validatedCountsByGame[gameId] = (validatedCountsByGame[gameId] || 0) + numCombos;
+
+                ticket.validation!.hits.forEach(hitCount => {
+                    if (hitCount >= 6) {
+                        actualHitCounts['6']++;
+                    } else if (hitCount === 5) {
+                        actualHitCounts['5']++;
+                    } else if (hitCount === 4) {
+                        actualHitCounts['4']++;
+                    } else if (hitCount === 3) {
+                        actualHitCounts['3']++;
+                    } else {
+                        actualHitCounts['<=2']++;
+                    }
+                });
+            });
+
+            // Adjust tiers depending on active game filter
+            let activeTiers = ['6', '5', '4', '3', '<=2'];
+            if (hrGameFilterVal === 'gordo' || hrGameFilterVal === 'euromillones' || hrGameFilterVal === 'nacional') {
+                activeTiers = ['5', '4', '3', '<=2'];
+            }
+
+            const getTheoreticalProb = (tier: string): number => {
+                if (hrGameFilterVal !== 'all') {
+                    const probs = THEORETICAL_PROBABILITIES[hrGameFilterVal];
+                    return probs ? (probs[tier] || 0) : 0;
+                }
+                
+                // Weighted average for 'all'
+                let sumWeightedProbs = 0;
+                let totalWeight = 0;
+                Object.entries(validatedCountsByGame).forEach(([gameId, count]) => {
+                    if (count > 0 && THEORETICAL_PROBABILITIES[gameId]) {
+                        const prob = THEORETICAL_PROBABILITIES[gameId][tier] || 0;
+                        sumWeightedProbs += count * prob;
+                        totalWeight += count;
+                    }
+                });
+                if (totalWeight > 0) return sumWeightedProbs / totalWeight;
+                return THEORETICAL_PROBABILITIES['bonoloto'][tier] || 0;
+            };
+
+            const tierLabels: { [key: string]: string } = {
+                '6': '🏆 6 Aciertos',
+                '5': '⭐ 5 Aciertos',
+                '4': '✨ 4 Aciertos',
+                '3': '🧩 3 Aciertos',
+                '<=2': '🎯 2 o menos Aciertos'
+            };
+
+            activeTiers.forEach(tier => {
+                const count = actualHitCounts[tier] || 0;
+                const actualFrequency = (count / validatedCombinations) * 100;
+                const theoreticalFrequency = getTheoreticalProb(tier);
+
+                let perfBadge = '';
+                if (count === 0 && theoreticalFrequency === 0) {
+                    perfBadge = `<span style="background: #f3f4f6; color: #4b5563; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500;">Sin datos</span>`;
+                } else if (actualFrequency > theoreticalFrequency) {
+                    const timesBetter = theoreticalFrequency > 0 ? (actualFrequency / theoreticalFrequency).toFixed(1) : 'N/A';
+                    const percentBetter = theoreticalFrequency > 0 ? (((actualFrequency - theoreticalFrequency) / theoreticalFrequency) * 100).toFixed(0) : '0';
+                    perfBadge = `<span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🚀 ${timesBetter}x superior (+${percentBetter}%)</span>`;
+                } else if (actualFrequency === theoreticalFrequency) {
+                    perfBadge = `<span style="background: #f3f4f6; color: #4b5563; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500;">Esperado</span>`;
+                } else {
+                    const timesWorse = actualFrequency > 0 && theoreticalFrequency > 0 ? (theoreticalFrequency / actualFrequency).toFixed(1) : '∞';
+                    perfBadge = `<span style="background: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">📉 ${actualFrequency > 0 ? timesWorse + 'x inferior' : '0 aciertos'}</span>`;
+                }
+
+                tableBody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #f3f4f6; hover:background-color: #fafafa;">
+                        <td style="padding: 12px 8px; font-weight: 500; color: #111827;">${tierLabels[tier] || tier}</td>
+                        <td style="padding: 12px 8px; text-align: center;">${count}</td>
+                        <td style="padding: 12px 8px; text-align: center; font-weight: 600; color: var(--primary);">${actualFrequency.toFixed(4)}%</td>
+                        <td style="padding: 12px 8px; text-align: center; color: #4b5563;">${theoreticalFrequency.toFixed(4)}%</td>
+                        <td style="padding: 12px 8px; text-align: right;">${perfBadge}</td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    // Strategy Distribution
+    const strategyCounts: { [key: string]: { total: number, validated: number, maxHits: number } } = {};
+    const strategyMap: { [key: string]: string } = { simple: 'Simple', winning: 'Estrategia Ganadora', multiple: 'Múltiple' };
+
+    filteredTickets.forEach(ticket => {
+        const strat = ticket.strategy || 'simple';
+        if (!strategyCounts[strat]) {
+            strategyCounts[strat] = { total: 0, validated: 0, maxHits: 0 };
+        }
+        
+        let combosCount = 0;
+        if (ticket.strategy === 'multiple' && ticket.combinations[0].length > 6) {
+             const n = ticket.combinations[0].length;
+             let combos = 1;
+             for(let i=0; i<6; i++) combos *= (n-i)/(i+1);
+             combosCount = Math.round(combos);
+        } else {
+             combosCount = ticket.combinations.length;
+        }
+
+        strategyCounts[strat].total += combosCount;
+        if (ticket.validation) {
+            strategyCounts[strat].validated += ticket.validation.hits.length;
+            const ticketMax = Math.max(...ticket.validation.hits);
+            if (ticketMax > strategyCounts[strat].maxHits) {
+                strategyCounts[strat].maxHits = ticketMax;
+            }
+        }
+    });
+
+    const elStrategyDist = document.getElementById('hrStrategyDistribution');
+    if (elStrategyDist) {
+        let stratHtml = '';
+        Object.entries(strategyCounts).forEach(([stratKey, data]) => {
+            const name = strategyMap[stratKey] || stratKey;
+            stratHtml += `
+                <div style="background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-weight: 600; color: #374151;">${name}</span>
+                        <div style="font-size: 0.8rem; color: #6b7280;">Apuestas generadas: ${data.total} | Validadas: ${data.validated}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.8rem; color: #4b5563; font-weight: 500;">Mejor resultado:</div>
+                        <span style="background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">${data.validated > 0 ? data.maxHits + ' aciertos' : 'Sin datos'}</span>
+                    </div>
+                </div>
+            `;
+        });
+        if (!stratHtml) {
+            stratHtml = '<div style="color: #6b7280; font-style: italic; text-align: center; padding: 10px;">No hay combinaciones registradas para este juego</div>';
+        }
+        elStrategyDist.innerHTML = stratHtml;
     }
   }
 

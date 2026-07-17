@@ -388,6 +388,301 @@ Devuelve obligatoriamente un objeto en formato JSON según el esquema de respues
     }
   });
 
+  app.post("/api/telemetry", async (req, res) => {
+    try {
+      const { userId, event, gameId, payload, timestamp } = req.body;
+
+      console.log(`[Telemetry] User: ${userId}, Event: ${event}, Game: ${gameId}`, payload);
+
+      const getEnv = (name: string) => {
+        const key = Object.keys(process.env).find(k => k.toUpperCase() === name.toUpperCase());
+        return key ? process.env[key] : null;
+      };
+
+      const telegramToken = getEnv("TELEGRAM_BOT_TOKEN");
+      const telegramChatId = getEnv("TELEGRAM_CHAT_ID");
+      const googleSheetsUrl = getEnv("GOOGLE_SHEETS_WEBAPP_URL");
+
+      const isPlaceholder = (val: string | null | undefined) => {
+        if (!val) return true;
+        const lower = val.toLowerCase();
+        return lower.includes("tu-") || lower.includes("example") || lower.includes("placeholder") || lower.trim() === "";
+      };
+
+      const hasTelegram = telegramToken && telegramChatId && !isPlaceholder(telegramToken) && !isPlaceholder(telegramChatId);
+      const hasGoogleSheets = googleSheetsUrl && !isPlaceholder(googleSheetsUrl);
+
+      // 1. Send to Google Sheets if configured (anonymous telemetry)
+      if (hasGoogleSheets) {
+        await fetch(googleSheetsUrl!.trim(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            timestamp: timestamp || new Date().toISOString(),
+            userId: userId,
+            gameId: gameId,
+            event: event,
+            combinationsCount: payload.combinationsCount || 0,
+            allHits: payload.allHits || []
+          })
+        }).catch(err => console.error("Error sending telemetry to Google Sheets:", err));
+      }
+
+      // 2. Send to Telegram if configured
+      if (hasTelegram) {
+        let msg = `📊 *Métrica Anónima - DataLotto*\n\n`;
+        msg += `👤 *Usuario ID:* \`${userId}\`\n`;
+        msg += `🎮 *Sorteo:* \`${gameId.toUpperCase()}\`\n`;
+        msg += `🕒 *Fecha:* \`${timestamp || new Date().toISOString()}\`\n`;
+        msg += `📝 *Evento:* *${event}*\n\n`;
+
+        if (event === 'save_ticket') {
+          msg += `💾 *Boleto Guardado!*\n`;
+          msg += `📅 *Sorteo Programado:* \`${payload.drawDate}\`\n`;
+          msg += `🎫 *Apuestas:* \`${payload.combinationsCount}\`\n`;
+          msg += `⚙️ *Múltiple:* \`${payload.isMultiple ? "Sí" : "No"}\`\n`;
+        } else if (event === 'validate_ticket') {
+          msg += `🏆 *Boleto Validado!*\n`;
+          msg += `🎯 *Acierto Máximo:* \`${payload.maxHits} aciertos\`\n`;
+          msg += `📋 *Desglose completo:* \`${JSON.stringify(payload.allHits)}\`\n`;
+          msg += `✨ *Detalle:* ${payload.prizeNotice}\n`;
+        } else if (event === 'save_filter') {
+          msg += `⚙️ *Filtro Guardado!*\n`;
+          msg += `🏷️ *Nombre:* \`${payload.name}\`\n`;
+        } else {
+          msg += `📦 *Detalles:* \`${JSON.stringify(payload)}\`\n`;
+        }
+
+        const url = `https://api.telegram.org/bot${telegramToken!.trim()}/sendMessage`;
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: telegramChatId!.trim(),
+            text: msg,
+            parse_mode: "Markdown"
+          })
+        }).catch(err => console.error("Error sending telemetry to Telegram:", err));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error logging telemetry:", error);
+      res.status(500).json({ error: error.message || "Error logging telemetry" });
+    }
+  });
+
+  app.get("/api/jackpots", async (req, res) => {
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcKUCZOa3NM7dBYXOzWO94y51x6RFT6jUCrTYpoLBlKAztGTbbxnygcC8pg47RScEMuVquZOX8iLCt/pub?output=csv";
+    
+    // Fallback data helper
+    const getNextDrawDateStr = (gameId: string): string => {
+      const now = new Date();
+      const day = now.getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+      let daysToAdd = 1;
+      
+      if (gameId === 'bonoloto') {
+        daysToAdd = 1;
+      } else if (gameId === 'primitiva') {
+        if (day < 4) daysToAdd = 4 - day;
+        else if (day < 6) daysToAdd = 6 - day;
+        else daysToAdd = 4;
+      } else if (gameId === 'gordo') {
+        if (day === 0) daysToAdd = 7;
+        else daysToAdd = 7 - day;
+      } else if (gameId === 'euromillones') {
+        if (day < 2) daysToAdd = 2 - day;
+        else if (day < 5) daysToAdd = 5 - day;
+        else daysToAdd = 2;
+      } else if (gameId === 'eurodreams') {
+        if (day < 1) daysToAdd = 1 - day;
+        else if (day < 4) daysToAdd = 4 - day;
+        else daysToAdd = 1;
+      } else {
+        if (day < 4) daysToAdd = 4 - day;
+        else if (day < 6) daysToAdd = 6 - day;
+        else daysToAdd = 4;
+      }
+      
+      const targetDate = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+      return targetDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
+
+    const fallbackJackpots = [
+      { id: "euromillones", juego: "EuroMillones", bote: 38000000, fecha: getNextDrawDateStr("euromillones") },
+      { id: "primitiva", juego: "La Primitiva", bote: 37000000, fecha: getNextDrawDateStr("primitiva") },
+      { id: "gordo", juego: "El Gordo de la Primitiva", bote: 10900000, fecha: getNextDrawDateStr("gordo") },
+      { id: "eurodreams", juego: "EuroDreams", bote: 7200000, fecha: getNextDrawDateStr("eurodreams") },
+      { id: "bonoloto", juego: "BonoLoto", bote: 1000000, fecha: getNextDrawDateStr("bonoloto") },
+      { id: "nacional", juego: "Lotería Nacional", bote: 30000, fecha: getNextDrawDateStr("nacional") }
+    ];
+
+    try {
+      console.log(`[Jackpots] Fetching published sheet from: ${csvUrl}`);
+      const response = await fetch(csvUrl, {
+        method: "GET",
+        headers: { "Accept": "text/csv; charset=utf-8" }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Google Sheets HTTP error: ${response.status} ${response.statusText}`);
+      }
+
+      const csvText = await response.text();
+      
+      if (!csvText || csvText.trim().startsWith("<!DOCTYPE")) {
+        throw new Error("Returned HTML instead of CSV data");
+      }
+
+      // Simple CSV parser
+      const parseCSV = (text: string): string[][] => {
+        const lines: string[][] = [];
+        let row: string[] = [];
+        let cell = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const nextChar = text[i + 1];
+          
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              cell += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            row.push(cell.trim());
+            cell = '';
+          } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') {
+              i++;
+            }
+            row.push(cell.trim());
+            if (row.length > 0 && row.some(c => c !== '')) {
+              lines.push(row);
+            }
+            row = [];
+            cell = '';
+          } else {
+            cell += char;
+          }
+        }
+        if (cell || row.length > 0) {
+          row.push(cell.trim());
+          lines.push(row);
+        }
+        return lines;
+      };
+
+      const parseBote = (boteStr: string): number => {
+        if (!boteStr) return 0;
+        const lower = boteStr.toLowerCase();
+        if (lower.includes("no disponible") || lower.includes("consultar")) return 0;
+        const cleanStr = lower.replace(/[^0-9,]/g, "");
+        const parts = cleanStr.split(',');
+        const integerPart = parts[0].replace(/\./g, "");
+        const num = parseInt(integerPart, 10);
+        return isNaN(num) ? 0 : num;
+      };
+
+      const rows = parseCSV(csvText);
+      if (rows.length <= 1) {
+        throw new Error("CSV has no data rows");
+      }
+
+      const parsedData: any[] = [];
+      const header = rows[0].map(h => h.toLowerCase().trim());
+      
+      const gameIdx = header.indexOf("juego");
+      // Find index of column matching 'fecha próximo sorteo' or 'fecha'
+      let dateIdx = header.findIndex(h => h.includes("fecha") || h.includes("sorteo"));
+      if (dateIdx === -1) dateIdx = 1;
+      
+      // Find index of column matching 'bote' or 'acumulado'
+      let jackpotIdx = header.findIndex(h => h.includes("bote") || h.includes("acumulado"));
+      if (jackpotIdx === -1) jackpotIdx = 2;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length < 2) continue;
+        
+        const juego = row[gameIdx] || "";
+        const fecha = row[dateIdx] || "";
+        const boteRaw = row[jackpotIdx] || "";
+        
+        const lowerName = juego.toLowerCase();
+        let id = "";
+        
+        if (lowerName.includes("euromillones") || (lowerName.includes("euro") && lowerName.includes("mill"))) {
+          id = "euromillones";
+        } else if (lowerName.includes("primitiva") && !lowerName.includes("gordo")) {
+          id = "primitiva";
+        } else if (lowerName.includes("gordo")) {
+          id = "gordo";
+        } else if (lowerName.includes("bonoloto")) {
+          id = "bonoloto";
+        } else if (lowerName.includes("eurodreams") || (lowerName.includes("euro") && lowerName.includes("dream"))) {
+          id = "eurodreams";
+        } else if (lowerName.includes("nacional")) {
+          id = "nacional";
+        }
+        
+        if (id) {
+          const bote = parseBote(boteRaw);
+          parsedData.push({
+            id,
+            juego,
+            bote,
+            fecha: fecha || getNextDrawDateStr(id)
+          });
+        }
+      }
+
+      // Ensure all 6 games are present, falling back to defaults if missing or empty
+      const supportedGameIds = ["euromillones", "primitiva", "gordo", "eurodreams", "bonoloto", "nacional"];
+      const finalData: any[] = [];
+
+      supportedGameIds.forEach(gameId => {
+        const found = parsedData.find(item => item.id === gameId);
+        if (found) {
+          let bote = found.bote;
+          if (gameId === "nacional" && bote === 0) {
+            bote = 30000;
+          }
+          if (gameId === "eurodreams" && bote === 0) {
+            bote = 7200000;
+          }
+          finalData.push({
+            ...found,
+            bote
+          });
+        } else {
+          const fb = fallbackJackpots.find(item => item.id === gameId);
+          if (fb) {
+            finalData.push(fb);
+          }
+        }
+      });
+
+      return res.json({
+        success: true,
+        isFallback: false,
+        data: finalData
+      });
+
+    } catch (error: any) {
+      console.error("[Jackpots] Error fetching/parsing jackpots, serving fallback:", error);
+      return res.json({
+        success: true,
+        isFallback: true,
+        errorDetail: error.message || "Error al conectar o parsear la hoja de cálculo.",
+        data: fallbackJackpots
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

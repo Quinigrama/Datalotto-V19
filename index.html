@@ -25,13 +25,204 @@
       <h3>🎲 DataLotto Menu</h3>
     </div>
     <ul class="sidebar-links">
-      <li class="active" id="game-bonoloto"><a href="#" data-action="switch-game" data-game="bonoloto">🇪🇸 Bonoloto</a></li>
-      <li id="game-primitiva"><a href="#" data-action="switch-game" data-game="primitiva">🇪🇸 Primitiva</a></li>
-      <li id="game-gordo"><a href="#" data-action="switch-game" data-game="gordo">🏆 El Gordo</a></li>
-      <li id="game-euromillones"><a href="#" data-action="switch-game" data-game="euromillones">🇪🇺 Euromillones</a></li>
-      <li id="game-eurodreams"><a href="#" data-action="switch-game" data-game="eurodreams">🌙 EuroDreams</a></li>
-      <li id="game-nacional"><a href="#" data-action="switch-game" data-game="nacional">🇪🇸 Lotería Nacional</a></li>
+      <li class="sidebar-section-header">🎮 Juegos</li>
+      <li class="active" id="game-bonoloto"><a href="#" data-action="switch-game" data-game="bonoloto">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-bonoloto" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="green-gradient-bonoloto" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4ade80" />
+              <stop offset="100%" stop-color="#15803d" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-bonoloto)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 20,20 C 18,25 19,30 23,34" stroke="url(#green-gradient-bonoloto)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-bonoloto)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-bonoloto)" transform="rotate(90 20 20)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-bonoloto)" transform="rotate(180 20 20)" />
+          <path d="M 20,20 C 13,15 11,9 16,6 C 19,4 20,8 20,9 C 20,8 21,4 24,6 C 29,9 27,15 20,20" fill="url(#green-gradient-bonoloto)" transform="rotate(270 20 20)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        Bonoloto
+      </a></li>
+      <li id="game-primitiva"><a href="#" data-action="switch-game" data-game="primitiva">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-primitiva" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <radialGradient id="green-sphere-primitiva" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#4ade80" />
+              <stop offset="60%" stop-color="#16a34a" />
+              <stop offset="100%" stop-color="#14532d" />
+            </radialGradient>
+            <mask id="primitiva-mask">
+              <rect x="0" y="0" width="40" height="40" fill="#ffffff" />
+              <line x1="5" y1="13" x2="35" y2="13" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="16.5" x2="35" y2="16.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="20" x2="35" y2="20" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="23.5" x2="35" y2="23.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="27" x2="35" y2="27" stroke="#000000" stroke-width="1.5" />
+              <line x1="20" y1="5" x2="20" y2="35" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 13,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 27,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+            </mask>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-primitiva)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="11" fill="url(#green-sphere-primitiva)" mask="url(#primitiva-mask)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        Primitiva
+      </a></li>
+      <li id="game-gordo"><a href="#" data-action="switch-game" data-game="gordo">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-gordo" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <radialGradient id="red-sphere-gordo" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#fca5a5" />
+              <stop offset="60%" stop-color="#dc2626" />
+              <stop offset="100%" stop-color="#7f1d1d" />
+            </radialGradient>
+            <mask id="gordo-mask">
+              <rect x="0" y="0" width="40" height="40" fill="#ffffff" />
+              <line x1="5" y1="13" x2="35" y2="13" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="16.5" x2="35" y2="16.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="20" x2="35" y2="20" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="23.5" x2="35" y2="23.5" stroke="#000000" stroke-width="1.5" />
+              <line x1="5" y1="27" x2="35" y2="27" stroke="#000000" stroke-width="1.5" />
+              <line x1="20" y1="5" x2="20" y2="35" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 13,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+              <path d="M 20,9 Q 27,20 20,31" fill="none" stroke="#000000" stroke-width="1.2" />
+            </mask>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-gordo)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="11" fill="url(#red-sphere-gordo)" mask="url(#gordo-mask)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        El Gordo
+      </a></li>
+      <li id="game-euromillones"><a href="#" data-action="switch-game" data-game="euromillones">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-euromillones" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="blue-metallic-euromillones" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1e40af" />
+              <stop offset="40%" stop-color="#3b82f6" />
+              <stop offset="70%" stop-color="#1d4ed8" />
+              <stop offset="100%" stop-color="#172554" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-euromillones)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="20" r="12.5" stroke="url(#blue-metallic-euromillones)" stroke-width="2.2" fill="none" />
+          <circle cx="20" cy="20" r="7.5" stroke="url(#blue-metallic-euromillones)" stroke-width="1.2" fill="none" />
+          <g transform="translate(20, 10)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(29.5, 16.9)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(25.9, 28.1)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(14.1, 28.1)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <g transform="translate(10.5, 16.9)"><polygon points="0,-1.5 0.4,-0.4 1.5,-0.4 0.6,0.3 0.9,1.4 0,0.7 -0.9,1.4 -0.6,0.3 -1.5,-0.4 -0.4,-0.4" fill="#facc15" /></g>
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.12)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        Euromillones
+      </a></li>
+      <li id="game-eurodreams"><a href="#" data-action="switch-game" data-game="eurodreams">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-eurodreams" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-eurodreams)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <g transform="rotate(0 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#c084fc" /></g>
+          <g transform="rotate(36 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#60a5fa" /></g>
+          <g transform="rotate(72 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#34d399" /></g>
+          <g transform="rotate(108 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#fb923c" /></g>
+          <g transform="rotate(144 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#f43f5e" /></g>
+          <g transform="rotate(180 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#c084fc" /></g>
+          <g transform="rotate(216 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#60a5fa" /></g>
+          <g transform="rotate(252 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#34d399" /></g>
+          <g transform="rotate(288 20 20) translate(0 -6)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#fb923c" /></g>
+          <g transform="rotate(324 20 20) translate(0 -10)"><path d="M 20,20 C 19.2,18.8 19.2,17.2 20,16 C 20.8,17.2 20.8,18.8 20,20" fill="#f43f5e" /></g>
+          <circle cx="20" cy="20" r="2.2" fill="#ffffff" />
+          <circle cx="20" cy="6" r="0.6" fill="#ffffff" />
+          <circle cx="20" cy="34" r="0.6" fill="#ffffff" />
+          <circle cx="6" cy="20" r="0.6" fill="#ffffff" />
+          <circle cx="34" cy="20" r="0.6" fill="#ffffff" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        EuroDreams
+      </a></li>
+      <li id="game-nacional"><a href="#" data-action="switch-game" data-game="nacional">
+        <svg class="game-menu-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gold-gradient-nacional" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#BF953F" />
+              <stop offset="25%" stop-color="#FCF6BA" />
+              <stop offset="50%" stop-color="#B38728" />
+              <stop offset="75%" stop-color="#FBF5B7" />
+              <stop offset="100%" stop-color="#AA771C" />
+            </linearGradient>
+            <linearGradient id="blue-flat-nacional" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#3b82f6" />
+              <stop offset="100%" stop-color="#1d4ed8" />
+            </linearGradient>
+          </defs>
+          <path d="M 6,34 L 6,7 A 3,3 0 0,1 9,4 L 31,4 A 3,3 0 0,1 34,7 L 34,34" stroke="url(#gold-gradient-nacional)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="20" cy="18" r="10" fill="url(#blue-flat-nacional)" />
+          <g stroke="rgba(255,255,255,0.75)" stroke-width="0.8" fill="none">
+            <line x1="20" y1="8" x2="20" y2="28" />
+            <path d="M 13.5,11 A 10,10 0 0,0 13.5,25" />
+            <path d="M 17,8.5 A 10,10 0 0,0 17,27.5" />
+            <path d="M 23,8.5 A 10,10 0 0,1 23,27.5" />
+            <path d="M 26.5,11 A 10,10 0 0,1 26.5,25" />
+          </g>
+          <line x1="8" y1="18" x2="32" y2="18" stroke="url(#blue-flat-nacional)" stroke-width="2" stroke-linecap="round" />
+          <rect x="18.5" y="26.5" width="3" height="3" fill="url(#blue-flat-nacional)" />
+          <path d="M 15,29 L 25,29 L 27,34 C 27,34 26,34 25,34 L 15,34 C 14,34 13,34 13,34 Z" fill="url(#blue-flat-nacional)" />
+          <path d="M 9,9 L 31,31" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2.5" stroke-linecap="round" pointer-events="none" />
+        </svg>
+        Lotería Nacional
+      </a></li>
+      
       <li class="divider"></li>
+      
+      <li class="sidebar-section-header">🛠️ Herramientas</li>
+      <li><a href="#" id="sidebarVizBtn">📊 Visualización de Datos</a></li>
+      <li><a href="#" id="sidebarBigDataBtn">🧠 Big Data Intelligence</a></li>
+      <li><a href="#" id="sidebarBacktestingBtn">🔬 Backtesting Avanzado</a></li>
+      <li><a href="#" id="sidebarSavedTicketsBtn">📂 Boletos Guardados</a></li>
+      <li><a href="#" id="sidebarOfficialDrawsBtn">📅 Sorteos Oficiales</a></li>
+      <li><a href="#" id="historyOfResultsBtn">📈 Rendimiento de Boletos</a></li>
+      <li><a href="#" id="sidebarJackpotsBtn">🔔 Alerta de Botes</a></li>
+      
+      <li class="divider"></li>
+      
+      <li class="sidebar-section-header">⚙️ Configuración</li>
       <li><a href="#" id="configUrlsBtn">🔗 Enlaces a URLs</a></li>
       <li><a href="#" id="filtersDashboardBtn">📊 Filtros de Juego</a></li>
       <li><a href="#" id="contactBtn">✉️ Contacto</a></li>
@@ -165,120 +356,9 @@
       </div>
     </div>
     
-    <!-- Data Visualization -->
-    <div class="collapsible-section">
-      <div class="collapsible-header" data-target="viz">
-        <h3>📈 Visualización de Datos</h3>
-        <button class="collapse-btn collapsed" id="vizCollapseBtn">+</button>
-      </div>
-      <div class="collapsible-content" id="vizContent">
-        <div class="collapsible-inner">
-            <p style="font-size: 0.9rem; color: var(--gray); margin-bottom: 15px;">Gráfico de frecuencia de aparición de cada número en los datos cargados.</p>
-            <div id="frequencyChartContainer" class="chart-container">
-                <div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el gráfico.</div>
-            </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Big Data Intelligence Module -->
-    <div class="collapsible-section">
-        <div class="collapsible-header" data-target="bigdata">
-          <h3>🧠 Big Data Intelligence</h3>
-          <button class="collapse-btn collapsed" id="bigdataCollapseBtn">+</button>
-        </div>
-        <div class="collapsible-content" id="bigdataContent">
-          <div class="collapsible-inner">
-            <div class="bigdata-grid">
-                
-                <!-- Panel 1: Immediate Context -->
-                <div class="bigdata-panel">
-                    <h4>📅 Contexto Inmediato (Últimos 2)</h4>
-                    <div id="lastDrawsDisplay" class="draw-history-mini">
-                        <div style="color: #999; font-style: italic;">Carga datos para ver el análisis.</div>
-                    </div>
-                </div>
-                
-                <!-- Panel 2: Temporal Patterns -->
-                <div class="bigdata-panel">
-                    <h4>⏳ Patrones Temporales</h4>
-                    <select id="nextDrawDay" class="day-selector">
-                        <option value="1">Próximo sorteo: Lunes</option>
-                        <option value="2">Próximo sorteo: Martes</option>
-                        <option value="3">Próximo sorteo: Miércoles</option>
-                        <option value="4">Próximo sorteo: Jueves</option>
-                        <option value="5">Próximo sorteo: Viernes</option>
-                        <option value="6">Próximo sorteo: Sábado</option>
-                        <option value="0">Próximo sorteo: Domingo</option>
-                    </select>
-                    <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Más frecuentes en este día:</div>
-                    <div id="bdDayTopNumbers" class="top-day-numbers">
-                        <span style="font-size: 0.8rem; color: #999;">-</span>
-                    </div>
-                </div>
 
-                <!-- Panel 3: Decision Matrix -->
-                <div class="bigdata-panel bigdata-matrix">
-                    <h4>🧠 Matriz de Decisión (Sugerencias)</h4>
-                    <p style="font-size: 0.8rem; color: #666;">Pulsa para recibir sugerencias visuales en el tablero (borde azul):</p>
-                    <div class="strategy-matrix-buttons">
-                        <div class="bd-strat-btn" data-type="conservative">
-                            <strong>Conservadora</strong>
-                            <small>0 Repeticiones</small>
-                            <small>Prob: 39.7%</small>
-                        </div>
-                        <div class="bd-strat-btn" data-type="balanced">
-                            <strong>Balanceada</strong>
-                            <small>1 Repetición</small>
-                            <small>Prob: 42.0%</small>
-                        </div>
-                        <div class="bd-strat-btn" data-type="risk">
-                            <strong>Riesgo</strong>
-                            <small>2 Repeticiones</small>
-                            <small>Prob: 14.8%</small>
-                        </div>
-                        <div class="bd-strat-btn ai-predict-btn" id="aiPredictBtn" style="border-color: #6366f1; background: #eef2ff; color: #4f46e5;">
-                            <strong>🤖 Predicción IA</strong>
-                            <small>Análisis Gemini</small>
-                            <small>Patrones 2026</small>
-                        </div>
-                    </div>
 
-                    <!-- Nuevo Panel: Perfil de Referencia y Tendencia -->
-                    <div id="drawTrendPanel" class="draw-trend-panel" style="margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; display: none;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                            <span style="font-size: 1.2rem;">📊</span>
-                            <h5 style="margin: 0; font-size: 0.9rem; color: #1e293b; font-weight: 600;">Estado del Ciclo (Último Sorteo)</h5>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div class="trend-stat">
-                                <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Tendencia Actual</small>
-                                <span id="currentTrendLabel" style="font-weight: 600; color: #334155; font-size: 0.85rem;">-</span>
-                            </div>
-                            <div class="trend-stat">
-                                <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Recomendación</small>
-                                <span id="trendRecommendation" style="font-weight: 600; color: #4f46e5; font-size: 0.85rem;">-</span>
-                            </div>
-                        </div>
-                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-                            <small style="display: block; color: #64748b; font-size: 0.7rem; margin-bottom: 4px;">Perfil de Referencia Sugerido:</small>
-                            <div id="suggestedProfile" style="font-size: 0.8rem; color: #334155; font-weight: 500;">
-                                <span class="profile-tag" style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Calientes</span>
-                                <span class="profile-tag" style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Neutros</span>
-                                <span class="profile-tag" style="background: #e0f2fe; color: #075985; padding: 2px 6px; border-radius: 4px;">0 Fríos</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="bdAlerts" class="bigdata-alerts">
-                        <!-- Alerts injected here -->
-                    </div>
-                </div>
-
-            </div>
-          </div>
-        </div>
-    </div>
 
     <!-- Estrategias -->
     <div class="strategy-section">
@@ -295,6 +375,11 @@
         <div class="strategy-btn" data-strategy="multiple">
           <div style="font-size: 1.5rem; margin-bottom: 5px;">🎰</div>
           <div>Múltiple</div>
+        </div>
+        <div class="strategy-btn" data-strategy="reducida">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎡</div>
+          <div>Reducida</div>
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 1px;">(Wheeling)</div>
         </div>
       </div>
 
@@ -319,6 +404,34 @@
             <div class="number-option" data-numbers="9">9 números</div>
             <div class="number-option" data-numbers="10">10 números</div>
             <div class="number-option" data-numbers="11">11 números</div>
+        </div>
+      </div>
+
+      <!-- Opciones de Apuestas Reducidas -->
+      <div class="multiple-numbers-options" id="reducedOptions" style="display: none; margin-top: 15px;">
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+          <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; text-align: left;">
+            <label style="font-weight: 600; color: #374151; font-size: 0.95rem;">Seleccionar Sistema Reducido:</label>
+            <select id="reducedSystemSelect" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background-color: white; color: #1f2937; font-weight: 500; cursor: pointer;">
+              <!-- Cargado dinámicamente según el juego activo -->
+            </select>
+          </div>
+
+          <!-- Cuadro de Información del Sistema -->
+          <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 15px; text-align: left;">
+            <h4 id="reducedSystemInfoTitle" style="margin: 0 0 4px 0; font-size: 0.9rem; color: #1e40af; font-weight: 600;">Sistemas de Reducción</h4>
+            <p id="reducedSystemInfoDesc" style="margin: 0; font-size: 0.8rem; color: #1e3a8a; line-height: 1.4;">Elige un sistema para ver sus garantías de aciertos.</p>
+          </div>
+
+          <!-- Acciones de Base -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="reducedAiBaseBtn" class="reduced-base-btn">
+              🎯 Seleccionar Números Base
+            </button>
+            <button id="reducedClearBaseBtn" class="reduced-clear-btn">
+              🗑️ Limpiar Base
+            </button>
+          </div>
         </div>
       </div>
 
@@ -951,7 +1064,7 @@
     </div>
 
     <!-- Estadísticas en Tiempo Real (COLLAPSIBLE) -->
-    <div class="collapsible-section">
+    <div class="collapsible-section" id="realTimeStatsSection">
       <div class="collapsible-header" data-target="realTimeStats">
           <h3>📊 Estadísticas en Tiempo Real</h3>
           <button class="collapse-btn collapsed" id="realTimeStatsCollapseBtn">+</button>
@@ -1028,142 +1141,9 @@
       </div>
     </div>
 
-    <!-- Estadísticas de Boletos Guardados (COLLAPSIBLE) -->
-    <div class="collapsible-section" id="savedTicketsStatsSection">
-        <div class="collapsible-header" data-target="savedStats">
-            <h3>📈 Estadísticas de Boletos Guardados</h3>
-            <button class="collapse-btn collapsed" id="savedStatsCollapseBtn">+</button>
-        </div>
-        <div class="collapsible-content" id="savedStatsContent">
-            <div class="collapsible-inner" id="savedTicketsStats">
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">Total Combinaciones Generadas</div>
-                        <div class="stat-value" id="totalTicketsSaved">-</div>
-                    </div>
-                     <div class="stat-item">
-                        <div class="stat-label">Estrategia Más Usada</div>
-                        <div class="stat-value" id="mostUsedStrategy">-</div>
-                    </div>
-                     <div class="stat-item">
-                        <div class="stat-label">Aciertos de 3</div>
-                        <div class="stat-value" id="hits3">-</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Aciertos de 4</div>
-                        <div class="stat-value" id="hits4">-</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Aciertos de 5</div>
-                        <div class="stat-value" id="hits5">-</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Aciertos de 6</div>
-                        <div class="stat-value" id="hits6">-</div>
-                    </div>
-                    <div class="stat-item" style="grid-column: 1 / -1;">
-                        <div class="stat-label">Distribución de Estrategias</div>
-                        <div class="stat-value" id="strategyDistribution">-</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+     <!-- Removed old statistics section -->
 
-    <!-- Módulo de Backtesting Avanzado (COLLAPSIBLE) -->
-    <div class="collapsible-section" id="backtestingSection">
-        <div class="collapsible-header" data-target="backtesting">
-            <h3>🔬 Módulo de Backtesting Avanzado</h3>
-            <button class="collapse-btn collapsed" id="backtestingCollapseBtn">+</button>
-        </div>
-        <div class="collapsible-content" id="backtestingContent">
-            <div class="collapsible-inner">
-                <div class="backtesting-controls" style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">
-                    <div class="filter-group">
-                        <div class="filter-title">📅 Periodo de Sorteos Históricos</div>
-                        <select id="backtestPeriod" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
-                            <option value="10">Últimos 10 sorteos</option>
-                            <option value="50">Últimos 50 sorteos</option>
-                            <option value="100" selected>Últimos 100 sorteos</option>
-                            <option value="200">Últimos 200 sorteos</option>
-                            <option value="all">Todos los sorteos cargados</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <div class="filter-title">🧭 Modalidad del Test</div>
-                        <select id="backtestMode" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
-                            <option value="current">Probar combinaciones/selección actual</option>
-                            <option value="generative">Probar algoritmos activos (Generativo paso a paso)</option>
-                            <option value="filters">Filtros Activos (Eficacia del filtrado histórico)</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="backtesting-actions" style="text-align: center; margin-bottom: 25px;">
-                    <button class="generate-btn" id="runBacktestBtn" style="background: linear-gradient(135deg, var(--secondary) 0%, #7c3aed 100%); width: auto; padding: 12px 30px; display: inline-flex; align-items: center; gap: 8px;">
-                        <span>🚀 Iniciar Backtesting</span>
-                    </button>
-                    <!-- Progress Bar -->
-                    <div id="backtestProgressContainer" style="display: none; margin-top: 15px; width: 100%; text-align: left;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--gray); margin-bottom: 4px;">
-                            <span>Procesando combinaciones...</span>
-                            <span id="backtestProgressText">0%</span>
-                        </div>
-                        <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
-                            <div id="backtestProgressBar" style="width: 0%; height: 100%; background: var(--secondary); transition: width 0.1s linear;"></div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Backtesting Results Module (initially hidden or template) -->
-                <div id="backtestResults" style="display: none;">
-                    <div class="stats-grid" style="margin-bottom: 20px;">
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblTotalDraws">Sorteos Simulados</div>
-                            <div class="stat-value" id="btTotalDraws">-</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblTicketPrice">Precio por Apuesta</div>
-                            <div class="stat-value" id="btTicketPrice">-</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblTotalSpent">Presupuesto Invertido</div>
-                            <div class="stat-value" style="color: var(--dark);" id="btTotalSpent">-</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblTotalWon">Premios Recuperados</div>
-                            <div class="stat-value" style="color: var(--success);" id="btTotalWon">-</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblBalance">Balance Neto</div>
-                            <div class="stat-value" style="font-weight: bold;" id="btBalance">-</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label" id="lblROI">Retorno de Inversión (ROI)</div>
-                            <div class="stat-value" style="font-weight: bold;" id="btROI">-</div>
-                        </div>
-                        <div class="stat-item" style="grid-column: 1 / -1; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; text-align: left;">
-                            <div class="stat-label" style="font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 4px;">
-                                💡 Esperanza Matemática Empírica: <span id="btExpectedValue" style="font-weight: 800;">-</span>
-                            </div>
-                            <div class="stat-info" style="font-size: 0.8rem; color: var(--gray); font-style: italic; line-height: 1.4;" id="btExpectedValueAdvice">
-                                Carga y corre un análisis para ver detalles del valor esperado por sorteo.
-                            </div>
-                        </div>
-                    </div>
-
-                    <h4 id="btBreakdownTitle" style="color: var(--primary); margin-bottom: 15px; font-size: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">🏆 Desglose Detallado de Aciertos</h4>
-                    <div id="btHitsBreakdownContainer">
-                        <!-- To be dynamically filled -->
-                    </div>
-                </div>
-                
-                <div id="backtestNoDataAlert" style="color: var(--gray); font-style: italic; text-align: center; padding: 15px;">
-                     Carga una base de datos o simula sorteos históricos antes de poder realizar pruebas de backtesting.
-                </div>
-            </div>
-        </div>
-    </div>
 
     </div>
 
@@ -1509,27 +1489,154 @@
 
     </div>
 
-    <div class="saved-tickets-section">
-      <div class="saved-tickets-header-controls" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px;">
-          <h3 style="margin: 0;">📂 Boletos Guardados</h3>
-          <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 0.85rem; color: #6b7280;">Filtrar por juego:</span>
-              <select id="savedTicketsGameFilter" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; background-color: white; color: #1f2937;">
-                  <option value="all">Todos los juegos</option>
-                  <option value="bonoloto">Bonoloto</option>
-                  <option value="primitiva">Primitiva</option>
-                  <option value="gordo">El Gordo</option>
-                  <option value="euromillones">Euromillones</option>
-                  <option value="eurodreams">EuroDreams</option>
-                  <option value="nacional">Lotería Nacional</option>
-              </select>
+
+  </div>
+
+    <!-- Modal de Visualización de Datos (Frecuencias, Mapa de calor y Ranking) -->
+    <div class="modal" id="dataVizModal" style="display: none;">
+      <div class="modal-content" style="max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+          <div>
+              <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">📊 Visualización Avanzada de Datos</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Mapa de calor y ranking de frecuencias de los datos históricos cargados</p>
           </div>
-      </div>
-      <div class="saved-tickets" id="savedTickets">
-          <div style="color:#666; text-align: center; padding: 20px;">No tienes boletos guardados</div>
+          <button class="close-btn" id="dataVizCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+        </div>
+
+        <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+          
+          <!-- Resumen de Frecuencias -->
+          <div id="dataVizSummary" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px 15px; margin-bottom: 15px; font-size: 0.95rem; color: #334155; line-height: 1.5; display: flex; flex-direction: column; gap: 4px;">
+              <div style="color:#666; text-align: center; width: 100%;">Carga datos para ver el resumen estadístico.</div>
+          </div>
+
+          <!-- Selectores de Control -->
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; justify-content: space-between; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                  <span style="font-weight: 600; font-size: 0.9rem; color: #475569;">Modo visual:</span>
+                  <div style="display: flex; background: #e2e8f0; padding: 3px; border-radius: 8px; gap: 2px;">
+                      <button id="vizModeHeatmapBtn" style="border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: var(--primary); color: white;" class="viz-toggle-btn active">🗺️ Mapa de Calor</button>
+                      <button id="vizModeRankingBtn" style="border: none; padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; background: transparent; color: #475569;" class="viz-toggle-btn">📊 Ranking de Frecuencias</button>
+                  </div>
+              </div>
+
+              <!-- Selector de Elemento (Números vs Estrellas) si el juego tiene estrellas -->
+              <div id="vizTargetSelectorContainer" style="display: none; align-items: center; gap: 8px;">
+                  <span style="font-weight: 600; font-size: 0.9rem; color: #475569;">Analizar:</span>
+                  <select id="vizTargetSelect" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white; color: #334155; font-weight: 500;">
+                      <option value="number">Números principales</option>
+                      <option value="star">Estrellas</option>
+                  </select>
+              </div>
+          </div>
+
+          <!-- Contenedor del Gráfico / Mapa de Calor -->
+          <div id="frequencyChartContainer" style="min-height: 300px; padding: 15px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto;">
+              <div style="color:#666; text-align: center; width: 100%; padding-top: 100px;">Carga datos para ver el gráfico.</div>
+          </div>
+
+        </div>
+
+        <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end;">
+          <button class="modal-btn confirm" id="dataVizConfirmCloseBtn" style="background-color: var(--primary);">Cerrar</button>
+        </div>
       </div>
     </div>
-  </div>
+
+    <!-- Modal de Historial de Resultados -->
+    <div class="modal" id="historyOfResultsModal" style="display: none;">
+      <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+          <div>
+              <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">📈 Historial de Resultados</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Comparativa Científica de Rendimiento vs Azar Matemático</p>
+          </div>
+          <button class="close-btn" id="hrCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+        </div>
+
+        <div class="modal-body" style="padding: 15px 0; overflow-y: auto; flex: 1;">
+          <!-- Selector de Juego para el Historial -->
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 1.2rem;">🎮</span>
+                  <div style="text-align: left;">
+                      <h4 style="margin: 0; font-size: 0.95rem; color: #1f2937; font-weight: 600;">Juego Analizado</h4>
+                      <p style="margin: 0; font-size: 0.8rem; color: #6b7280;">Filtra las estadísticas por tipo de juego</p>
+                  </div>
+              </div>
+              <select id="hrGameFilter" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background-color: #white; color: #1f2937; font-weight: 500; cursor: pointer; min-width: 180px;">
+                  <option value="all">Todos los Juegos</option>
+                  <option value="bonoloto">🇪🇸 Bonoloto</option>
+                  <option value="primitiva">🇪🇸 Primitiva</option>
+                  <option value="gordo">🏆 El Gordo</option>
+                  <option value="euromillones">🇪🇺 Euromillones</option>
+                  <option value="eurodreams">🌙 EuroDreams</option>
+                  <option value="nacional">🇪🇸 Lotería Nacional</option>
+              </select>
+          </div>
+
+          <!-- Resumen Métrico de Boletos Guardados y Validados -->
+          <div class="stats-grid" style="margin-bottom: 25px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); display: grid; gap: 15px;">
+              <div class="stat-item" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                  <div class="stat-label" style="font-size: 0.8rem; color: #4b5563; font-weight: 500; margin-bottom: 4px;">Total Apuestas</div>
+                  <div class="stat-value" id="hrTotalCombinations" style="font-size: 1.6rem; font-weight: 700; color: var(--primary);">-</div>
+              </div>
+              <div class="stat-item" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                  <div class="stat-label" style="font-size: 0.8rem; color: #4b5563; font-weight: 500; margin-bottom: 4px;">Apuestas Validadas</div>
+                  <div class="stat-value" id="hrValidatedCombinations" style="font-size: 1.6rem; font-weight: 700; color: #0284c7;">-</div>
+              </div>
+              <div class="stat-item" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                  <div class="stat-label" style="font-size: 0.8rem; color: #4b5563; font-weight: 500; margin-bottom: 4px;">Mejor Acierto</div>
+                  <div class="stat-value" id="hrBestCombination" style="font-size: 1.6rem; font-weight: 700; color: #16a34a;">-</div>
+              </div>
+          </div>
+
+          <!-- Comparativa Científica vs Azar Puro -->
+          <div class="dashboard-panel" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <div style="border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 1.2rem;">⚖️</span>
+                  <div style="text-align: left;">
+                      <h3 style="margin: 0; font-size: 1rem; color: #111827; font-weight: 600;">Rendimiento del Filtrado vs Azar Matemático</h3>
+                      <p style="margin: 0; font-size: 0.75rem; color: #6b7280;">Demostración de efectividad vs probabilidades teóricas del azar</p>
+                  </div>
+              </div>
+
+              <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                      <thead>
+                          <tr style="border-bottom: 2px solid #e5e7eb; color: #4b5563; font-weight: 600;">
+                              <th style="padding: 10px 6px;">Categoría de Aciertos</th>
+                              <th style="padding: 10px 6px; text-align: center;">Nº de Apuestas</th>
+                              <th style="padding: 10px 6px; text-align: center;">Tu Frecuencia (%)</th>
+                              <th style="padding: 10px 6px; text-align: center;">Frecuencia Azar (%)</th>
+                              <th style="padding: 10px 6px; text-align: right;">Rendimiento vs Azar</th>
+                          </tr>
+                      </thead>
+                      <tbody id="hrComparisonTableBody" style="color: #374151;">
+                          <!-- Dinámicamente cargado -->
+                      </tbody>
+                  </table>
+              </div>
+
+              <div id="hrNoValidationWarning" style="display: none; padding: 15px; text-align: center; color: #6b7280; font-style: italic; background: #f9fafb; border-radius: 8px; margin-top: 12px; font-size: 0.85rem;">
+                  ⚠️ Aún no has validado ningún boleto del juego seleccionado. Introduce los resultados de un sorteo en tus boletos guardados para calcular el rendimiento científico.
+              </div>
+          </div>
+
+          <!-- Distribución por Estrategias de Generación -->
+          <div class="dashboard-panel" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 0.95rem; color: #374151; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; text-align: left; font-weight: 600;">📊 Distribución por Métodos de Generación</h4>
+              <div id="hrStrategyDistribution" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                  <!-- Dinámicamente cargado -->
+              </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding-top: 15px; flex-shrink: 0; margin-top: auto;">
+          <button class="modal-btn confirm" id="hrCloseBtn2" style="background: var(--primary); color: white;">Entendido</button>
+        </div>
+      </div>
+    </div>
 
   <div class="modal" id="gameSelectionModal">
     <div class="modal-content">
@@ -1757,6 +1864,383 @@
             <button class="modal-btn cancel" id="closeAiPredictionBtn">Cerrar</button>
             <button class="modal-btn confirm" id="applyAiNumbersBtn" style="display: none;">Aplicar Sugerencias</button>
         </div>
+    </div>
+  </div>
+
+  <div class="modal" id="backtestingModal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">🔬 Backtesting Avanzado</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Ejecuta una simulación retrospectiva histórica de tus filtros y selecciones</p>
+        </div>
+        <button class="close-btn" id="backtestingCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+          <div class="backtesting-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+              <div class="filter-group">
+                  <div class="filter-title">📅 Periodo de Sorteos Históricos</div>
+                  <select id="backtestPeriod" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                      <option value="10">Últimos 10 sorteos</option>
+                      <option value="50">Últimos 50 sorteos</option>
+                      <option value="100" selected>Últimos 100 sorteos</option>
+                      <option value="200">Últimos 200 sorteos</option>
+                      <option value="all">Todos los sorteos cargados</option>
+                  </select>
+              </div>
+              <div class="filter-group">
+                  <div class="filter-title">🧭 Modalidad del Test</div>
+                  <select id="backtestMode" class="day-selector" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                      <option value="current">Probar combinaciones/selección actual</option>
+                      <option value="generative">Probar algoritmos activos (Generativo paso a paso)</option>
+                      <option value="filters">Filtros Activos (Eficacia del filtrado histórico)</option>
+                  </select>
+              </div>
+          </div>
+          
+          <div class="backtesting-actions" style="text-align: center; margin-bottom: 25px;">
+              <button class="generate-btn" id="runBacktestBtn" style="background: linear-gradient(135deg, var(--secondary) 0%, #7c3aed 100%); width: auto; padding: 12px 30px; display: inline-flex; align-items: center; gap: 8px;">
+                  <span>🚀 Iniciar Backtesting</span>
+              </button>
+              <!-- Progress Bar -->
+              <div id="backtestProgressContainer" style="display: none; margin-top: 15px; width: 100%; text-align: left;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--gray); margin-bottom: 4px;">
+                      <span>Procesando combinaciones...</span>
+                      <span id="backtestProgressText">0%</span>
+                  </div>
+                  <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                      <div id="backtestProgressBar" style="width: 0%; height: 100%; background: var(--secondary); transition: width 0.1s linear;"></div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Backtesting Results Module (initially hidden or template) -->
+          <div id="backtestResults" style="display: none;">
+              <div class="stats-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;">
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblTotalDraws">Sorteos Simulados</div>
+                      <div class="stat-value" id="btTotalDraws">-</div>
+                  </div>
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblTicketPrice">Precio por Apuesta</div>
+                      <div class="stat-value" id="btTicketPrice">-</div>
+                  </div>
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblTotalSpent">Presupuesto Invertido</div>
+                      <div class="stat-value" style="color: var(--dark);" id="btTotalSpent">-</div>
+                  </div>
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblTotalWon">Premios Recuperados</div>
+                      <div class="stat-value" style="color: var(--success);" id="btTotalWon">-</div>
+                  </div>
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblBalance">Balance Neto</div>
+                      <div class="stat-value" style="font-weight: bold;" id="btBalance">-</div>
+                  </div>
+                  <div class="stat-item">
+                      <div class="stat-label" id="lblROI">Retorno de Inversión (ROI)</div>
+                      <div class="stat-value" style="font-weight: bold;" id="btROI">-</div>
+                  </div>
+                  <div class="stat-item" style="grid-column: 1 / -1; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                      <div class="stat-label" style="font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 4px;">
+                          💡 Esperanza Matemática Empírica: <span id="btExpectedValue" style="font-weight: 800;">-</span>
+                      </div>
+                      <div class="stat-info" style="font-size: 0.8rem; color: var(--gray); font-style: italic; line-height: 1.4;" id="btExpectedValueAdvice">
+                          Carga y corre un análisis para ver detalles del valor esperado por sorteo.
+                      </div>
+                  </div>
+              </div>
+
+              <h4 id="btBreakdownTitle" style="color: var(--primary); margin-bottom: 15px; font-size: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">🏆 Desglose Detallado de Aciertos</h4>
+              <div id="btHitsBreakdownContainer">
+                  <!-- To be dynamically filled -->
+              </div>
+          </div>
+          
+          <div id="backtestNoDataAlert" style="color: var(--gray); font-style: italic; text-align: center; padding: 15px;">
+               Carga una base de datos o simula sorteos históricos antes de poder realizar pruebas de backtesting.
+          </div>
+      </div>
+
+      <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end;">
+        <button class="modal-btn confirm" id="backtestingConfirmCloseBtn" style="background-color: var(--primary);">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="officialDrawsModal" style="display: none;">
+    <div class="modal-content" style="max-width: 850px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">📅 Consulta de Sorteos Oficiales</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Histórico de combinaciones ganadoras cargadas para el juego activo</p>
+        </div>
+        <button class="close-btn" id="officialDrawsCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+        <!-- Controles de Filtros y Búsqueda -->
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 15px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; width: 100%;">
+            <!-- Selector de Juego en modal -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.9rem; font-weight: 600; color: #475569;">Juego Activo:</span>
+                <span id="officialDrawsGameName" style="font-size: 0.95rem; font-weight: bold; color: var(--primary); background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 10px; border-radius: 6px;">-</span>
+            </div>
+            
+            <!-- Buscador por número o fecha -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: 1; justify-content: flex-end;">
+                <input type="text" id="officialDrawsSearchInput" placeholder="🔍 Buscar nº o fecha (ej. 15, o 2026)..." style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; width: 250px; outline: none; transition: border 0.2s;">
+                <button class="modal-btn confirm" id="officialDrawsSearchClearBtn" style="background-color: #f1f5f9; color: #475569; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Limpiar</button>
+            </div>
+        </div>
+
+        <!-- Tabla/Lista de Sorteos -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; margin-bottom: 15px;">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">
+                            <th style="padding: 12px 15px; width: 100px;">Sorteo #</th>
+                            <th style="padding: 12px 15px; width: 150px;">Fecha</th>
+                            <th style="padding: 12px 15px;">Combinación Ganadora</th>
+                            <th style="padding: 12px 15px; width: 125px;" id="officialDrawsExtraHeader">Adicional / ⭐</th>
+                        </tr>
+                    </thead>
+                    <tbody id="officialDrawsTableBody">
+                        <!-- Sorteos inyectados dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="officialDrawsNoData" style="display: none; padding: 40px; text-align: center; color: #94a3b8; font-style: italic;">
+                No se encontraron sorteos que coincidan con la búsqueda.
+            </div>
+        </div>
+
+        <!-- Paginación Interactiva -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 0.85rem; color: #64748b;" id="officialDrawsPaginationInfo">
+                Mostrando sorteos 0-0 de 0
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;" id="officialDrawsPaginationControls">
+                <button id="officialDrawsPrevBtn" class="modal-btn confirm" style="padding: 6px 12px; font-size: 0.85rem; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; cursor: pointer; border-radius: 6px;">« Ant.</button>
+                <span id="officialDrawsCurrentPage" style="font-size: 0.85rem; font-weight: bold; color: #334155; padding: 0 5px;">Pág. 1</span>
+                <button id="officialDrawsNextBtn" class="modal-btn confirm" style="padding: 6px 12px; font-size: 0.85rem; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; cursor: pointer; border-radius: 6px;">Sig. »</button>
+            </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end;">
+        <button class="modal-btn confirm" id="officialDrawsConfirmCloseBtn" style="background-color: var(--primary);">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="savedTicketsModal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">📂 Boletos Guardados</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Administra, filtra y valida tus apuestas sugeridas guardadas</p>
+        </div>
+        <button class="close-btn" id="savedTicketsCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+        <div class="saved-tickets-header-controls" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.9rem; font-weight: 600; color: #475569;">Filtrar por juego:</span>
+                <select id="savedTicketsGameFilter" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; background-color: white; color: #1f2937; font-weight: 500;">
+                    <option value="all">Todos los juegos</option>
+                    <option value="bonoloto">Bonoloto</option>
+                    <option value="primitiva">Primitiva</option>
+                    <option value="gordo">El Gordo</option>
+                    <option value="euromillones">Euromillones</option>
+                    <option value="eurodreams">EuroDreams</option>
+                    <option value="nacional">Lotería Nacional</option>
+                </select>
+            </div>
+        </div>
+        <div class="saved-tickets" id="savedTickets">
+            <div style="color:#666; text-align: center; padding: 20px;">No tienes boletos guardados</div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end;">
+        <button class="modal-btn confirm" id="savedTicketsConfirmCloseBtn" style="background-color: var(--primary);">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Big Data Intelligence Modal -->
+  <div class="modal" id="bigdataModal" style="display: none;">
+    <div class="modal-content" style="max-width: 950px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary);">🧠 Big Data Intelligence</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Análisis avanzado de tendencias, patrones temporales y sugerencias en tiempo real</p>
+        </div>
+        <button class="close-btn" id="bigdataCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+        <div class="bigdata-grid">
+            
+            <!-- Panel 1: Immediate Context -->
+            <div class="bigdata-panel">
+                <h4 style="color: var(--bigdata); font-size: 0.9rem; margin-bottom: 10px; border-bottom: 2px solid #bfdbfe; padding-bottom: 4px; font-weight: 600;">📅 Contexto Inmediato (Últimos 2)</h4>
+                <div id="lastDrawsDisplay" class="draw-history-mini">
+                    <div style="color: #999; font-style: italic;">Carga datos para ver el análisis.</div>
+                </div>
+            </div>
+            
+            <!-- Panel 2: Temporal Patterns -->
+            <div class="bigdata-panel">
+                <h4 style="color: var(--bigdata); font-size: 0.9rem; margin-bottom: 10px; border-bottom: 2px solid #bfdbfe; padding-bottom: 4px; font-weight: 600;">⏳ Patrones Temporales</h4>
+                <select id="nextDrawDay" class="day-selector" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; outline: none;">
+                    <option value="1">Próximo sorteo: Lunes</option>
+                    <option value="2">Próximo sorteo: Martes</option>
+                    <option value="3">Próximo sorteo: Miércoles</option>
+                    <option value="4">Próximo sorteo: Jueves</option>
+                    <option value="5">Próximo sorteo: Viernes</option>
+                    <option value="6">Próximo sorteo: Sábado</option>
+                    <option value="0">Próximo sorteo: Domingo</option>
+                </select>
+                <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Más frecuentes en este día:</div>
+                <div id="bdDayTopNumbers" class="top-day-numbers">
+                    <span style="font-size: 0.8rem; color: #999;">-</span>
+                </div>
+            </div>
+
+            <!-- Panel 3: Decision Matrix -->
+            <div class="bigdata-panel bigdata-matrix">
+                <h4 style="color: var(--bigdata); font-size: 0.9rem; margin-bottom: 10px; border-bottom: 2px solid #bfdbfe; padding-bottom: 4px; font-weight: 600;">🧠 Matriz de Decisión (Sugerencias)</h4>
+                <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">Pulsa para recibir sugerencias visuales en el tablero (borde azul):</p>
+                <div class="strategy-matrix-buttons">
+                    <div class="bd-strat-btn" data-type="conservative">
+                        <strong>Conservadora</strong>
+                        <small>0 Repeticiones</small>
+                        <small>Prob: 39.7%</small>
+                    </div>
+                    <div class="bd-strat-btn" data-type="balanced">
+                        <strong>Balanceada</strong>
+                        <small>1 Repetición</small>
+                        <small>Prob: 42.0%</small>
+                    </div>
+                    <div class="bd-strat-btn" data-type="risk">
+                        <strong>Riesgo</strong>
+                        <small>2 Repeticiones</small>
+                        <small>Prob: 14.8%</small>
+                    </div>
+                    <div class="bd-strat-btn ai-predict-btn" id="aiPredictBtn" style="border-color: #6366f1; background: #eef2ff; color: #4f46e5;">
+                        <strong>🤖 Predicción IA</strong>
+                        <small>Análisis Gemini</small>
+                        <small>Patrones 2026</small>
+                    </div>
+                </div>
+
+                <!-- Nuevo Panel: Perfil de Referencia y Tendencia -->
+                <div id="drawTrendPanel" class="draw-trend-panel" style="margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; display: none;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 1.2rem;">📊</span>
+                        <h5 style="margin: 0; font-size: 0.9rem; color: #1e293b; font-weight: 600;">Estado del Ciclo (Último Sorteo)</h5>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="trend-stat">
+                            <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Tendencia Actual</small>
+                            <span id="currentTrendLabel" style="font-weight: 600; color: #334155; font-size: 0.85rem;">-</span>
+                        </div>
+                        <div class="trend-stat">
+                            <small style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.025em;">Recomendación</small>
+                            <span id="trendRecommendation" style="font-weight: 600; color: #4f46e5; font-size: 0.85rem;">-</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                        <small style="display: block; color: #64748b; font-size: 0.7rem; margin-bottom: 4px;">Perfil de Referencia Sugerido:</small>
+                        <div id="suggestedProfile" style="font-size: 0.8rem; color: #334155; font-weight: 500;">
+                            <span class="profile-tag" style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Calientes</span>
+                            <span class="profile-tag" style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">0 Neutros</span>
+                            <span class="profile-tag" style="background: #e0f2fe; color: #075985; padding: 2px 6px; border-radius: 4px;">0 Fríos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bdAlerts" class="bigdata-alerts">
+                    <!-- Alerts injected here -->
+                </div>
+            </div>
+
+        </div>
+      </div>
+
+      <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end;">
+        <button class="modal-btn confirm" id="bigdataConfirmCloseBtn" style="background-color: var(--primary);">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerta de Botes Modal -->
+  <div class="modal" id="jackpotsModal" style="display: none;">
+    <div class="modal-content" style="max-width: 850px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--primary); display: flex; align-items: center; gap: 8px;">🔔 Alerta de Botes y Esperanza Matemática</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280;">Monitorea los botes acumulados y calcula el juego óptimo según probabilidad matemática</p>
+        </div>
+        <button class="close-btn" id="jackpotsCloseBtn" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #9ca3af; line-height: 1;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 15px; overflow-y: auto; flex: 1; text-align: left;">
+        <!-- Top Recommendation Card -->
+        <div id="jackpotsRecommendCard" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; position: relative; overflow: hidden;">
+            <div style="font-size: 2.5rem; background: #white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); flex-shrink: 0;">🔥</div>
+            <div style="flex: 1; z-index: 1;">
+                <span style="font-size: 0.75rem; background: #2563eb; color: white; padding: 2px 8px; border-radius: 20px; font-weight: bold; text-transform: uppercase;">Mayor Esperanza Matemática</span>
+                <h4 id="bestExpectationGameName" style="margin: 5px 0 2px 0; font-size: 1.2rem; color: #1e3a8a;">Cargando recomendación...</h4>
+                <p id="bestExpectationReasoning" style="margin: 0; font-size: 0.85rem; color: #1e40af;">Calculando el retorno esperado para los próximos sorteos...</p>
+            </div>
+        </div>
+
+        <!-- Metric Explanation Accordion -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #334155;">
+                <span>💡</span> ¿Qué es la Esperanza Matemática de un Sorteo?
+            </div>
+            <p style="margin: 0; font-size: 0.8rem; color: #475569; line-height: 1.4;">
+                Es un coeficiente que mide la rentabilidad teórica de jugar a un sorteo. Se calcula dividiendo el <strong>Bote Acumulado</strong> entre la dificultad matemática de acertar (número de combinaciones posibles) multiplicada por el precio del boleto. Cuanto más alto sea este índice, <strong>mayor retorno teórico</strong> tiene cada euro que inviertes en ese juego.
+            </p>
+        </div>
+
+        <!-- Table -->
+        <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 600;">
+                        <th style="padding: 10px 15px;">Juego</th>
+                        <th style="padding: 10px 15px;">Bote Estimado</th>
+                        <th style="padding: 10px 15px;">Próximo Sorteo</th>
+                        <th style="padding: 10px 15px; text-align: right;">Índice Esperanza</th>
+                        <th style="padding: 10px 15px; text-align: center;">Calificación</th>
+                    </tr>
+                </thead>
+                <tbody id="jackpotsTableBody">
+                    <tr>
+                        <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8;">
+                            <div class="loading-spinner" style="margin: 0 auto 10px auto; width: 24px; height: 24px;"></div>
+                            Cargando datos de botes oficiales...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+      </div>
+
+      <div class="modal-actions" style="border-top: 1px solid #e5e7eb; padding: 15px; flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="modal-btn cancel" id="jackpotsRefreshBtn" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">🔄 Forzar Actualización</button>
+        <button class="modal-btn confirm" id="jackpotsConfirmCloseBtn" style="background-color: var(--primary);">Entendido</button>
+      </div>
     </div>
   </div>
 

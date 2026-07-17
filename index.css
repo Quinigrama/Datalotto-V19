@@ -1392,7 +1392,7 @@ body {
 
 .strategy-buttons {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 8px;
   margin-bottom: 15px;
 }
@@ -1675,6 +1675,11 @@ body {
 
 .share-btn {
   background: linear-gradient(135deg, #4caf50, #388e3c);
+  color: white;
+}
+
+.sheets-btn {
+  background: linear-gradient(135deg, #0f9d58, #0b8043);
   color: white;
 }
 
@@ -2527,6 +2532,19 @@ input:checked + .slider:before {
     margin: 15px 20px;
 }
 
+.sidebar-section-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 1.5px;
+    padding: 10px 25px 8px 25px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .sidebar-links a {
     display: block;
     padding: 12px 25px;
@@ -2806,6 +2824,16 @@ textarea.modal-input {
     font-weight: bold;
 }
 
+.mini-ball.star-ball {
+    background: #fef08a !important;
+    color: #a16207 !important;
+    border-color: #facc15 !important;
+    font-size: 0.7rem;
+    width: 24px;
+    height: 24px;
+    font-weight: bold;
+}
+
 .mini-ball.reintegro-ball {
     background: #ef4444 !important;
     color: white !important;
@@ -2836,5 +2864,101 @@ textarea.modal-input {
 .stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
 }
+
+/* Elegant and polished styles for Reduced Systems Base Buttons */
+.reduced-base-btn {
+    flex: 1;
+    min-width: 150px;
+    font-size: 0.85rem;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+    transition: var(--transition);
+}
+
+.reduced-base-btn:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #7c3aed 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(99, 102, 241, 0.35);
+}
+
+.reduced-base-btn:active {
+    transform: scale(0.97) !important;
+    box-shadow: 0 2px 5px rgba(99, 102, 241, 0.2);
+}
+
+.reduced-clear-btn {
+    flex: 1;
+    min-width: 120px;
+    font-size: 0.85rem;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1.5px solid #fee2e2;
+    color: var(--danger);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: var(--transition);
+}
+
+.reduced-clear-btn:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.08);
+}
+
+.reduced-clear-btn:active {
+    transform: scale(0.97) !important;
+    background: #fee2e2;
+}
+
+/* GAME MENU SVG ICONS STYLING */
+.game-menu-icon {
+    width: 2.2em;
+    height: 2.2em;
+    vertical-align: middle;
+    display: inline-block;
+    margin-right: 12px;
+    flex-shrink: 0;
+    transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+/* Align icon inside links */
+.sidebar-links a {
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Hover scales the icon nicely */
+.sidebar-links li a:hover .game-menu-icon,
+.sidebar-links li.active a .game-menu-icon {
+    transform: scale(1.15) rotate(2deg);
+    filter: drop-shadow(0 2px 5px rgba(253, 224, 71, 0.3));
+}
+
+/* Style for icons inside h1 headers */
+.header h1 .game-menu-icon {
+    width: 1.6em;
+    height: 1.6em;
+    margin-right: 0;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+}
+
 
 
