@@ -477,6 +477,7 @@ class DataLotto49Advanced {
         daySelect.value = String(new Date().getDay());
     }
     this.updateBigDataPanel();
+    this.checkContractAccepted();
 
     // Trigger runSelfDiagnostics on startup
     setTimeout(() => {
@@ -758,7 +759,7 @@ class DataLotto49Advanced {
   showHelpForElement(target: HTMLElement) {
     let title = "Manual DataLotto";
     let body = `
-        <p>Estás en el <strong>Modo Ayuda</strong> de DataLotto49.</p>
+        <p>Estás en el <strong>Modo Ayuda</strong> de DataLotto.</p>
         <p>Al pulsar sobre cualquier botón, pestaña, filtro o control del panel, se interceptará su acción tradicional para mostrarte en esta ventana emergente una explicación detallada de su teoría de juego y funcionalidad.</p>
         <p><strong>¿Cómo empezar?</strong></p>
         <ul>
@@ -1289,7 +1290,7 @@ class DataLotto49Advanced {
         title = "⚠️ Descargo de Responsabilidad Ético";
         body = `
             <p>Recuerda siempre jugar con responsabilidad. Las loterías son juegos basados fundamentalmente en el azar y la aleatoriedad matemática. Ningún software en el mundo, por avanzado que sea, puede garantizar un premio seguro del 100% en sorteos ideales.</p>
-            <p>DataLotto49 es una herramienta de asistencia científica que maximiza tus probabilidades reduciendo desperdicios matemáticos, pero recuerda definir siempre límites moderados y divertirte jugando.</p>
+            <p>DataLotto es una herramienta de asistencia científica que maximiza tus probabilidades reduciendo desperdicios matemáticos, pero recuerda definir siempre límites moderados y divertirte jugando.</p>
         `;
     } else if (target.closest('#runBacktestBtn') || target.closest('.collapsible-header[data-target="backtesting"]')) {
         title = "🧪 Módulo de Backtesting Retrospectivo";
@@ -2548,9 +2549,7 @@ class DataLotto49Advanced {
 
   // ===== DATOS HISTÓRICOS (Sin cambios) =====
   initializeHistoricalData() {
-    if (!this.dataLoaded) {
-      this.simulateHistoricalData(500);
-    }
+    // No auto-cargar simulación al iniciar o cambiar de juego. Todas las acciones de carga son manuales.
   }
   simulateHistoricalData(numDraws = 500, append = false) {
     this.showFilterSpinner();
@@ -4497,6 +4496,66 @@ class DataLotto49Advanced {
     }
   }
 
+  checkContractAccepted() {
+    const accepted = localStorage.getItem('datalotto_contract_accepted');
+    const modal = document.getElementById('contractModal');
+    if (!accepted && modal) {
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      
+      const checkbox = document.getElementById('contractAcceptCheckbox') as HTMLInputElement;
+      const acceptBtn = document.getElementById('contractAcceptBtn') as HTMLButtonElement;
+      
+      const validateForm = () => {
+        const isChecked = checkbox ? checkbox.checked : false;
+        if (isChecked) {
+          acceptBtn.disabled = false;
+          acceptBtn.style.background = 'var(--primary, #3b82f6)';
+          acceptBtn.style.color = 'white';
+          acceptBtn.style.cursor = 'pointer';
+        } else {
+          acceptBtn.disabled = true;
+          acceptBtn.style.background = '#cbd5e1';
+          acceptBtn.style.color = '#64748b';
+          acceptBtn.style.cursor = 'not-allowed';
+        }
+      };
+      
+      checkbox?.addEventListener('change', validateForm);
+      
+      acceptBtn?.addEventListener('click', () => {
+        const isChecked = checkbox ? checkbox.checked : false;
+        if (isChecked) {
+          const sigId = 'REG-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Date.now().toString().slice(-4);
+          const timestamp = new Date().toLocaleString('es-ES');
+          
+          const logPayload = {
+            sigId: sigId,
+            signer: "Usuario Anónimo",
+            timestamp: timestamp,
+            acceptedTerms: [
+              "Esta aplicación es para entretenimiento y análisis estadístico.",
+              "Ninguna estrategia a largo plazo vence al azar. Las loterías y apuestas son juegos de probabilidad pura.",
+              "El juego compulsivo es una adicción. Juega con responsabilidad."
+            ]
+          };
+          
+          localStorage.setItem('datalotto_contract_accepted', 'true');
+          localStorage.setItem('datalotto_contract_signature_name', "Usuario Aceptante");
+          localStorage.setItem('datalotto_contract_signature_date', timestamp);
+          localStorage.setItem('datalotto_contract_signature_id', sigId);
+          localStorage.setItem('datalotto_contract_log', JSON.stringify(logPayload));
+          
+          modal.style.display = 'none';
+          document.body.style.overflow = '';
+          this.showToast('🛡️ Condiciones de uso aceptadas correctamente. ¡Bienvenido a DataLotto!', 'success');
+          
+          this.sendTelemetry('CONTRACT_SIGNED', { signer: "Usuario Aceptante", sigId: sigId });
+        }
+      });
+    }
+  }
+
   bindEvents() {
     // Interceptor in capture phase for Help Mode
     document.addEventListener('click', (e) => {
@@ -4677,6 +4736,63 @@ class DataLotto49Advanced {
         this.toggleHelpMode();
     });
     document.getElementById('closeHelpModalBtn')?.addEventListener('click', () => this.toggleModal('helpModal', false));
+
+    // Eventos de Registro de Aceptación y Condiciones de Uso
+    document.getElementById('viewSignedContractBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSidebar();
+        
+        const sigDate = localStorage.getItem('datalotto_contract_signature_date') || new Date().toLocaleString('es-ES');
+        const sigId = localStorage.getItem('datalotto_contract_signature_id') || 'REG-PRE-ACCEPT';
+        const anonId = this.anonymousUserId;
+        
+        const logContainer = document.getElementById('signedContractLogContent');
+        if (logContainer) {
+            logContainer.textContent = `========================================================================
+             REGISTRO DE CONFORMIDAD - DATALOTTO           
+========================================================================
+
+ID DE REGISTRO:      ${sigId}
+FECHA Y HORA:        ${sigDate}
+ESTADO DE REGISTRO:  ACEPTADO Y VERIFICADO DIGITALMENTE
+ID DE DISPOSITIVO:   ${anonId}
+
+------------------------------------------------------------------------
+CONDICIONES DE USO ACEPTADAS:
+------------------------------------------------------------------------
+1. El usuario acepta y declara comprender que DataLotto es 
+   una aplicación exclusivamente de entretenimiento y análisis estadístico.
+2. NINGUNA ESTRATEGIA A LARGO PLAZO VENCE AL AZAR. Cada sorteo es un 
+   evento de probabilidad pura, independiente de los anteriores.
+3. Esta aplicación NO fomenta las apuestas ni el juego compulsivo.
+4. El usuario declara ser mayor de edad y asume el 100% de la 
+   responsabilidad por cualquier uso que haga de esta herramienta.
+5. El desarrollador queda totalmente exonerado de cualquier pérdida 
+   económica o reclamación de daños directos o indirectos.
+
+------------------------------------------------------------------------
+            ESTE LOG CONSTITUYE PRUEBA DE CONFORMIDAD DIGITAL           
+========================================================================`;
+        }
+        this.toggleModal('signedContractModal', true);
+    });
+
+    document.getElementById('closeSignedContractBtn')?.addEventListener('click', () => {
+        this.toggleModal('signedContractModal', false);
+    });
+
+    document.getElementById('downloadSignedContractBtn')?.addEventListener('click', () => {
+        const logContent = document.getElementById('signedContractLogContent')?.textContent || '';
+        const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `registro_aceptacion_datalotto.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    });
     
     document.getElementById('closeConfigUrlsBtn')?.addEventListener('click', () => this.toggleModal('configUrlsModal', false));
     document.getElementById('saveConfigUrlsBtn')?.addEventListener('click', () => this.saveConfigUrls());
@@ -7115,9 +7231,9 @@ class DataLotto49Advanced {
   }
   shareTicket() {
       if (!this.currentTicket) return;
-      const text = `Mi boleto DataLotto49:\n${this.currentTicket.combinations.map(c => c.join(' - ')).join('\n')}`;
+      const text = `Mi boleto DataLotto:\n${this.currentTicket.combinations.map(c => c.join(' - ')).join('\n')}`;
       if (navigator.share) {
-          navigator.share({ title: 'Mi Boleto DataLotto49', text }).catch(console.error);
+          navigator.share({ title: 'Mi Boleto DataLotto', text }).catch(console.error);
       } else {
           navigator.clipboard.writeText(text).then(() => this.showToast('Boleto copiado al portapapeles', 'success'));
       }
