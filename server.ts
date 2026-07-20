@@ -31,6 +31,18 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
+  // CORS Middleware for Mobile/Capacitor connections
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "X-Requested-With,content-type,Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // API Routes
   app.post("/api/ai-filters", async (req, res) => {
     try {

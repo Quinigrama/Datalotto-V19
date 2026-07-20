@@ -489,9 +489,24 @@ class DataLotto49Advanced {
     }, 100);
   }
 
+  getApiUrl(path: string): string {
+    // Detect if we are running inside a Capacitor mobile app context, standard file context, or local mobile emulator
+    const isMobileApp = (window as any).Capacitor || 
+                        window.location.protocol === 'capacitor:' || 
+                        window.location.protocol === 'file:' ||
+                        (window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !window.location.port);
+                        
+    if (isMobileApp) {
+      // The deployed Cloud Run backend URL. It holds the configured Secrets (GEMINI_API_KEY, TELEGRAM, etc.)
+      const cloudRunUrl = 'https://ais-pre-flpngreplftrmg6n6xnq7l-7070977073.europe-west2.run.app';
+      return `${cloudRunUrl}${path}`;
+    }
+    return path;
+  }
+
   async sendTelemetry(eventType: string, payload: any) {
     try {
-      await fetch('/api/telemetry', {
+      await fetch(this.getApiUrl('/api/telemetry'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2174,7 +2189,7 @@ class DataLotto49Advanced {
       };
 
       try {
-          const response = await fetch('/api/ai-filters', {
+          const response = await fetch(this.getApiUrl('/api/ai-filters'), {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
@@ -7253,7 +7268,7 @@ CONDICIONES DE USO ACEPTADAS:
     `;
     
     try {
-      const response = await fetch(`/api/jackpots${force ? '?refresh=true' : ''}`);
+      const response = await fetch(this.getApiUrl(`/api/jackpots${force ? '?refresh=true' : ''}`));
       const result = await response.json();
       
       if (!result.success || !result.data) {
@@ -7801,7 +7816,7 @@ CONDICIONES DE USO ACEPTADAS:
     }
 
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetch(this.getApiUrl('/api/contact'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, email })
